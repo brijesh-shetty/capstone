@@ -1,23 +1,23 @@
 generator client {
   provider = "prisma-client-js"
+  engineType = "library"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model User {
-  id           String         @id @default(uuid())
+  id           String    @id @default(uuid())
   name         String
-  email        String         @unique
+  email        String    @unique
   passwordHash String
-  role         Role           @default(STUDENT)
-  level        Int            @default(1)
-  xpTotal      Int            @default(0)
-  streakDays   Int            @default(0)
+  role         Role      @default(STUDENT)
+  level        Int       @default(1)
+  xpTotal      Int       @default(0)
+  streakDays   Int       @default(0)
   lastActiveAt DateTime?
-  createdAt    DateTime       @default(now())
+  createdAt    DateTime  @default(now())
 
   gameSessions  GameSession[]
   masteryScores MasteryScore[]
@@ -32,80 +32,62 @@ enum Role {
   ADMIN
 }
 
+// Topics define the taxonomy Claude uses to generate questions.
+// They do NOT hold questions — they are navigation nodes only.
 model Topic {
-  id         String   @id @default(uuid())
-  subject    String
-  topic      String
-  subtopic   String
-  difficulty Int      @default(1)  // 1=easy 2=medium 3=hard
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
+  id        String   @id @default(uuid())
+  subject   String   // e.g. "Physics"
+  topic     String   // e.g. "Thermodynamics"
+  subtopic  String   // e.g. "Carnot cycle"  ← this is what Claude receives
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
 
-  questions     Question[]
   gameSessions  GameSession[]
   masteryScores MasteryScore[]
   studyPlans    StudyPlan[]
 }
 
-model Question {
-  id            String       @id @default(uuid())
-  topicId       String
-  topic         Topic        @relation(fields: [topicId], references: [id])
-  questionText  String
-  options       Json         // string[]
-  correctAnswer String
-  explanation   String?
-  difficulty    Int          @default(2)
-  type          QuestionType @default(MCQ)
-  isAiGenerated Boolean      @default(false)
-  isApproved    Boolean      @default(true)
-  createdAt     DateTime     @default(now())
-
-  attempts QuestionAttempt[]
-}
-
-enum QuestionType {
-  MCQ
-  FILL_BLANK
-  MATCH
-  CASE_STUDY
-}
-
+// Stores session metadata only. No question content.
 model GameSession {
-  id          String    @id @default(uuid())
-  userId      String
-  user        User      @relation(fields: [userId], references: [id])
-  topicId     String
-  topic       Topic     @relation(fields: [topicId], references: [id])
-  score       Int       @default(0)
-  xpEarned    Int       @default(0)
-  durationSec Int       @default(0)
-  playedAt    DateTime  @default(now())
-
-  attempts QuestionAttempt[]
-}
-
-model QuestionAttempt {
-  id          String      @id @default(uuid())
-  sessionId   String
-  session     GameSession @relation(fields: [sessionId], references: [id])
-  questionId  String
-  question    Question    @relation(fields: [questionId], references: [id])
-  isCorrect   Boolean
-  timeTakenMs Int
-  hintUsed    Boolean     @default(false)
-}
-
-model MasteryScore {
   id          String   @id @default(uuid())
   userId      String
   user        User     @relation(fields: [userId], references: [id])
   topicId     String
   topic       Topic    @relation(fields: [topicId], references: [id])
-  score       Float    @default(0)   // 0–100
-  isWeak      Boolean  @default(false)
-  attempts    Int      @default(0)
-  lastUpdated DateTime @default(now())
+  difficulty  Int      @default(2)
+  score       Int      @default(0)
+  xpEarned    Int      @default(0)
+  durationSec Int      @default(0)
+  playedAt    DateTime @default(now())
+
+  attempts QuestionAttempt[]
+}
+
+// Stores per-question result without storing the question itself.
+// questionHash = sha256(questionText).slice(0,16) — deterministic, reproducible.
+model QuestionAttempt {
+  id           String      @id @default(uuid())
+  sessionId    String
+  session      GameSession @relation(fields: [sessionId], references: [id])
+  questionHash String      // identifies the question without storing it
+  subtopic     String      // copied from topic for fast mastery queries
+  difficulty   Int
+  isCorrect    Boolean
+  timeTakenMs  Int
+  hintUsed     Boolean     @default(false)
+}
+
+model MasteryScore {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  topicId      String
+  topic        Topic    @relation(fields: [topicId], references: [id])
+  score        Float    @default(0)
+  isWeak       Boolean  @default(false)
+  attemptCount Int      @default(0)
+  nextReviewAt DateTime?
+  lastUpdated  DateTime @default(now())
 
   @@unique([userId, topicId])
 }
@@ -122,26 +104,28 @@ model Test {
   testQuestions TestQuestion[]
 }
 
+// Test questions are also AI-generated. Store result only.
 model TestQuestion {
-  id         String  @id @default(uuid())
-  testId     String
-  test       Test    @relation(fields: [testId], references: [id])
-  questionId String
-  subtopic   String
-  isCorrect  Boolean
-  marksAwarded Int   @default(0)
+  id           String  @id @default(uuid())
+  testId       String
+  test         Test    @relation(fields: [testId], references: [id])
+  questionHash String
+  subtopic     String  // critical — weakness detection reads this
+  difficulty   Int
+  isCorrect    Boolean
+  marksAwarded Int     @default(0)
 }
 
 model StudyPlan {
-  id          String        @id @default(uuid())
+  id          String   @id @default(uuid())
   userId      String
-  user        User          @relation(fields: [userId], references: [id])
+  user        User     @relation(fields: [userId], references: [id])
   topicId     String
-  topic       Topic         @relation(fields: [topicId], references: [id])
-  priority    Priority      @default(MEDIUM)
-  isCompleted Boolean       @default(false)
+  topic       Topic    @relation(fields: [topicId], references: [id])
+  priority    Priority @default(MEDIUM)
+  isCompleted Boolean  @default(false)
   dueDate     DateTime?
-  createdAt   DateTime      @default(now())
+  createdAt   DateTime @default(now())
 
   @@unique([userId, topicId])
 }

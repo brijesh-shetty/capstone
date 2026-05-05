@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { apiClient } from '../services/api';
 
 interface Question {
-  id: string;
-  text: string;
+  hash: string;
+  questionText: string;
   options: string[];
 }
 
@@ -14,27 +14,35 @@ interface GameSessionProps {
 }
 
 interface Answer {
-  questionId: string;
-  answer: string;
+  hash: string;
+  chosenAnswer: string;
   timeTakenMs: number;
   hintUsed: boolean;
 }
 
+interface GameResult {
+  hash: string;
+  isCorrect: boolean;
+  correctAnswer: string;
+  explanation: string;
+}
+
 export const GameSession: React.FC<GameSessionProps> = ({ topicId, topicName, onGameComplete }) => {
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionKey, setSessionKey] = useState<string | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
-  const [showFeedback, setShowFeedback] = useState(false);
-  const [feedbackCorrect, setFeedbackCorrect] = useState(false);
+  
   const [timeLeft, setTimeLeft] = useState(30);
   const [sessionStartTime, setSessionStartTime] = useState<number>(Date.now());
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [gameComplete, setGameComplete] = useState(false);
+  
   const [score, setScore] = useState(0);
   const [xpEarned, setXpEarned] = useState(0);
+  const [results, setResults] = useState<GameResult[]>([]);
 
   // Load game session on mount
   useEffect(() => {
@@ -43,7 +51,7 @@ export const GameSession: React.FC<GameSessionProps> = ({ topicId, topicName, on
 
   // Timer for each question
   useEffect(() => {
-    if (gameComplete || showFeedback || !sessionId) return;
+    if (gameComplete || !sessionKey) return;
 
     const timer = setInterval(() => {
       setTimeLeft(prev => {
@@ -56,14 +64,14 @@ export const GameSession: React.FC<GameSessionProps> = ({ topicId, topicName, on
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [sessionId, gameComplete, showFeedback]);
+  }, [sessionKey, gameComplete]);
 
   const loadGameSession = async () => {
     try {
       const response = await apiClient.get<any>(
         `/games/session/${topicId}`
       );
-      setSessionId(response.sessionId);
+      setSessionKey(response.sessionKey);
       setQuestions(response.questions);
       setLoading(false);
     } catch (error) {
@@ -78,51 +86,45 @@ export const GameSession: React.FC<GameSessionProps> = ({ topicId, topicName, on
     }
   };
 
-  const handleAnswer = (answer: string | null) => {
+  const handleAnswer = async (answer: string | null) => {
     const timeTaken = Date.now() - sessionStartTime;
     const currentQuestion = questions[currentQuestionIndex];
 
-    // Dummy feedback - in production, validate against backend
-    const isCorrect = answer === currentQuestion.options[0]; // Simplified
-
-    setAnswers([
+    const newAnswers = [
       ...answers,
       {
-        questionId: currentQuestion.id,
-        answer: answer || 'skipped',
+        hash: currentQuestion.hash,
+        chosenAnswer: answer || 'skipped',
         timeTakenMs: timeTaken,
         hintUsed: false
       }
-    ]);
+    ];
+    setAnswers(newAnswers);
 
-    setFeedbackCorrect(isCorrect);
-    setShowFeedback(true);
-  };
-
-  const handleNext = async () => {
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
       setSelectedAnswer(null);
-      setShowFeedback(false);
       setTimeLeft(30);
       setSessionStartTime(Date.now());
     } else {
       // Submit game
-      await submitGame();
+      await submitGame(newAnswers);
     }
   };
 
-  const submitGame = async () => {
+  const submitGame = async (finalAnswers: Answer[]) => {
     setSubmitting(true);
     try {
       const response = await apiClient.post<any>('/games/session/submit', {
+        sessionKey,
         topicId,
-        answers,
+        answers: finalAnswers,
         durationSec: Math.floor((Date.now() - sessionStartTime) / 1000)
       });
 
       setScore(response.score);
       setXpEarned(response.xpEarned);
+      setResults(response.results);
       setGameComplete(true);
     } catch (error) {
       console.error('Failed to submit game:', error);
@@ -133,7 +135,7 @@ export const GameSession: React.FC<GameSessionProps> = ({ topicId, topicName, on
   };
 
   if (loading) {
-    return <div className="text-center py-8">Loading game...</div>;
+    return <div className="text-center py-8">Loading game... Generating questions with Claude...</div>;
   }
 
   if (questions.length === 0) {
@@ -151,19 +153,45 @@ export const GameSession: React.FC<GameSessionProps> = ({ topicId, topicName, on
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div className="bg-blue-50 p-4 rounded">
               <p className="text-gray-600">Score</p>
-              <p className="text-3xl font-bold text-blue-600">{score}</p>
+              <p className="text-3xl font-bold text-blue-600">{score}%</p>
             </div>
             <div className="bg-green-50 p-4 rounded">
               <p className="text-gray-600">XP Earned</p>
               <p className="text-3xl font-bold text-green-600">+{xpEarned}</p>
             </div>
           </div>
+          
+          <div className="mt-8 text-left max-h-96 overflow-y-auto pr-4">
+            <h3 className="text-xl font-bold mb-4">Review Your Answers</h3>
+            {results.map((res, idx) => {
+              const q = questions.find(q => q.hash === res.hash);
+              const userAns = answers.find(a => a.hash === res.hash)?.chosenAnswer;
+              
+              return (
+                <div key={idx} className={`p-4 mb-4 rounded border-l-4 ${res.isCorrect ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50'}`}>
+                  <p className="font-bold mb-2">{q?.questionText}</p>
+                  <p className="text-sm mb-1">
+                    <span className="font-semibold">Your Answer: </span>
+                    <span className={res.isCorrect ? 'text-green-700' : 'text-red-700'}>{userAns}</span>
+                  </p>
+                  {!res.isCorrect && (
+                    <p className="text-sm mb-2 text-green-700">
+                      <span className="font-semibold">Correct Answer: </span>
+                      {res.correctAnswer}
+                    </p>
+                  )}
+                  <p className="text-sm italic mt-2">{res.explanation}</p>
+                </div>
+              );
+            })}
+          </div>
+
           <button
             onClick={() => {
               setGameComplete(false);
               onGameComplete();
             }}
-            className="px-6 py-3 bg-blue-500 text-white rounded hover:bg-blue-600 font-bold"
+            className="mt-6 px-6 py-3 bg-blue-500 text-white rounded hover:bg-blue-600 font-bold"
           >
             Back to Dashboard
           </button>
@@ -189,19 +217,19 @@ export const GameSession: React.FC<GameSessionProps> = ({ topicId, topicName, on
           </div>
 
           <div className="mb-6">
-            <h3 className="text-lg font-bold mb-4">{currentQuestion.text}</h3>
+            <h3 className="text-lg font-bold mb-4">{currentQuestion.questionText}</h3>
 
             <div className="space-y-2 mb-6">
               {currentQuestion.options.map((option, idx) => (
                 <button
                   key={idx}
-                  onClick={() => !showFeedback && setSelectedAnswer(option)}
-                  disabled={showFeedback}
+                  onClick={() => setSelectedAnswer(option)}
+                  disabled={submitting}
                   className={`w-full p-4 text-left rounded border-2 transition ${
                     selectedAnswer === option
                       ? 'border-blue-500 bg-blue-50'
                       : 'border-gray-300 hover:border-blue-300'
-                  } ${showFeedback ? 'opacity-75' : ''}`}
+                  }`}
                 >
                   <span className="font-semibold mr-3">
                     {String.fromCharCode(65 + idx)}.
@@ -210,50 +238,23 @@ export const GameSession: React.FC<GameSessionProps> = ({ topicId, topicName, on
                 </button>
               ))}
             </div>
-
-            {showFeedback && (
-              <div
-                className={`p-4 rounded mb-4 ${
-                  feedbackCorrect
-                    ? 'bg-green-100 border border-green-400'
-                    : 'bg-red-100 border border-red-400'
-                }`}
-              >
-                <p className={`font-bold ${feedbackCorrect ? 'text-green-800' : 'text-red-800'}`}>
-                  {feedbackCorrect ? '✅ Correct!' : '❌ Incorrect'}
-                </p>
-                <p className="text-sm mt-1">The correct answer is {currentQuestion.options[0]}</p>
-              </div>
-            )}
           </div>
 
-          {showFeedback && (
-            <button
-              onClick={handleNext}
-              disabled={submitting}
-              className="w-full px-6 py-3 bg-blue-500 text-white rounded hover:bg-blue-600 font-bold disabled:bg-gray-400"
-            >
-              {submitting
-                ? 'Submitting...'
-                : currentQuestionIndex === questions.length - 1
-                ? 'Finish Game'
-                : 'Next Question'}
-            </button>
-          )}
-
-          {!showFeedback && selectedAnswer && (
+          {selectedAnswer && (
             <button
               onClick={() => handleAnswer(selectedAnswer)}
-              className="w-full px-6 py-3 bg-green-500 text-white rounded hover:bg-green-600 font-bold"
+              disabled={submitting}
+              className="w-full px-6 py-3 bg-green-500 text-white rounded hover:bg-green-600 font-bold disabled:bg-gray-400"
             >
-              Submit Answer
+              {submitting ? 'Submitting...' : 'Submit Answer'}
             </button>
           )}
 
-          {!showFeedback && !selectedAnswer && (
+          {!selectedAnswer && (
             <button
               onClick={() => handleAnswer(null)}
-              className="w-full px-6 py-3 bg-gray-400 text-white rounded hover:bg-gray-500 font-bold"
+              disabled={submitting}
+              className="w-full px-6 py-3 bg-gray-400 text-white rounded hover:bg-gray-500 font-bold disabled:bg-gray-300"
             >
               Skip Question
             </button>

@@ -1,48 +1,28 @@
-// XP Rules for the gamified learning platform
+import { prisma } from '../lib/prisma';
+
 export const XP_RULES = {
-  correct_easy: 10,
-  correct_medium: 18,
-  correct_hard: 25,
-  speed_bonus: 5,
-  daily_streak_7: 100,
-  topic_completed: 50,
+  correct_easy:         10,
+  correct_medium:       18,
+  correct_hard:         25,
+  speed_bonus:           5,
+  daily_streak_7:      100,
+  topic_completed:      50,
   weak_topic_mastered: 150,
-  perfect_test: 200
+  perfect_test:        200,
+  hint_used:            -5,  // deducted
 };
 
-// Level thresholds - total XP needed for each level
-export const LEVEL_THRESHOLDS = [0, 500, 1200, 2000, 3200, 5000, 8000, 12000, 18000];
+const LEVEL_THRESHOLDS = [0, 500, 1200, 2000, 3200, 5000, 8000, 12000, 18000];
 
-// Helper function to calculate level based on XP
-export function calculateLevel(xpTotal: number): number {
-  const levelIndex = LEVEL_THRESHOLDS.findIndex(threshold => xpTotal < threshold);
-  return levelIndex === -1 ? LEVEL_THRESHOLDS.length : levelIndex;
+export async function awardXp(userId: string, amount: number) {
+  await prisma.user.update({ where: { id: userId }, data: { xpTotal: { increment: amount } } });
+  await checkLevelUp(userId);
 }
 
-// Helper function to calculate XP for correct answer
-export function calculateXp(difficulty: string, timeSpent: number): number {
-  let baseXp = 0;
-  
-  switch (difficulty) {
-    case 'easy':
-      baseXp = XP_RULES.correct_easy;
-      break;
-    case 'medium':
-    case 'intermediate':
-      baseXp = XP_RULES.correct_medium;
-      break;
-    case 'hard':
-    case 'advanced':
-      baseXp = XP_RULES.correct_hard;
-      break;
-    default:
-      baseXp = XP_RULES.correct_easy;
-  }
-  
-  // Speed bonus: +5 XP if answered in less than 15 seconds
-  if (timeSpent < 15) {
-    baseXp += XP_RULES.speed_bonus;
-  }
-  
-  return baseXp;
+async function checkLevelUp(userId: string) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) return;
+  const newLevel = LEVEL_THRESHOLDS.findLastIndex(t => user.xpTotal >= t) + 1;
+  if (newLevel !== user.level)
+    await prisma.user.update({ where: { id: userId }, data: { level: newLevel } });
 }

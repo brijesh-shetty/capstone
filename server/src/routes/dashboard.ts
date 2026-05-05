@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
-import { db } from '../firebase';
+import { prisma } from '../lib/prisma';
 
 const router = Router();
 
@@ -8,17 +8,17 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId!;
 
-    // Get user
-    const userSnapshot = await db.ref(`users/${userId}`).once('value');
-    const user = userSnapshot.val();
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Count game sessions
-    const sessSnapshot = await db.ref('gameSessions').orderByChild('userId').equalTo(userId).once('value');
-    const sessions = sessSnapshot.val() ? Object.keys(sessSnapshot.val()).length : 0;
+    const sessionsCount = await prisma.gameSession.count({
+      where: { userId }
+    });
 
     const stats = {
       user: {
@@ -30,7 +30,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
         xpTotal: user.xpTotal,
         streakDays: user.streakDays
       },
-      gamesPlayed: sessions
+      gamesPlayed: sessionsCount
     };
 
     res.json(stats);
