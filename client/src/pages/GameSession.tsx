@@ -11,6 +11,12 @@ interface GameSessionProps {
   topicId: string;
   topicName: string;
   onGameComplete: () => void;
+  preloadedSessionData?: {
+    sessionKey: string;
+    topicId: string;
+    topicName: string;
+    questions: Question[];
+  } | null;
 }
 
 interface Answer {
@@ -27,13 +33,16 @@ interface GameResult {
   explanation: string;
 }
 
-export const GameSession: React.FC<GameSessionProps> = ({ topicId, topicName, onGameComplete }) => {
+export const GameSession: React.FC<GameSessionProps> = ({ topicId, topicName, onGameComplete, preloadedSessionData }) => {
   const [sessionKey, setSessionKey] = useState<string | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   
+  const [hint, setHint] = useState<string | null>(null);
+  const [hintLoading, setHintLoading] = useState(false);
+
   const [timeLeft, setTimeLeft] = useState(30);
   const [sessionStartTime, setSessionStartTime] = useState<number>(Date.now());
   const [loading, setLoading] = useState(true);
@@ -46,8 +55,14 @@ export const GameSession: React.FC<GameSessionProps> = ({ topicId, topicName, on
 
   // Load game session on mount
   useEffect(() => {
-    loadGameSession();
-  }, [topicId]);
+    if (preloadedSessionData) {
+      setSessionKey(preloadedSessionData.sessionKey);
+      setQuestions(preloadedSessionData.questions);
+      setLoading(false);
+    } else {
+      loadGameSession();
+    }
+  }, [topicId, preloadedSessionData]);
 
   // Timer for each question
   useEffect(() => {
@@ -86,6 +101,23 @@ export const GameSession: React.FC<GameSessionProps> = ({ topicId, topicName, on
     }
   };
 
+  const fetchHint = async () => {
+    if (!sessionKey || hintLoading || hint) return;
+    setHintLoading(true);
+    try {
+      const response = await apiClient.post<any>('/games/hint', {
+        sessionKey,
+        questionHash: questions[currentQuestionIndex].hash
+      });
+      setHint(response.hint);
+    } catch (error) {
+      console.error('Failed to get hint:', error);
+      setHint('Failed to load hint.');
+    } finally {
+      setHintLoading(false);
+    }
+  };
+
   const handleAnswer = async (answer: string | null) => {
     const timeTaken = Date.now() - sessionStartTime;
     const currentQuestion = questions[currentQuestionIndex];
@@ -96,7 +128,7 @@ export const GameSession: React.FC<GameSessionProps> = ({ topicId, topicName, on
         hash: currentQuestion.hash,
         chosenAnswer: answer || 'skipped',
         timeTakenMs: timeTaken,
-        hintUsed: false
+        hintUsed: !!hint
       }
     ];
     setAnswers(newAnswers);
@@ -104,6 +136,7 @@ export const GameSession: React.FC<GameSessionProps> = ({ topicId, topicName, on
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
       setSelectedAnswer(null);
+      setHint(null);
       setTimeLeft(30);
       setSessionStartTime(Date.now());
     } else {
@@ -238,6 +271,23 @@ export const GameSession: React.FC<GameSessionProps> = ({ topicId, topicName, on
                 </button>
               ))}
             </div>
+          </div>
+
+          <div className="mb-6 flex flex-col items-center">
+            {hint ? (
+              <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-lg w-full mb-4">
+                <span className="font-bold mr-2">💡 Hint:</span>
+                {hint}
+              </div>
+            ) : (
+              <button
+                onClick={fetchHint}
+                disabled={hintLoading || submitting}
+                className="text-yellow-600 hover:text-yellow-700 font-semibold flex items-center gap-2 mb-4 disabled:opacity-50"
+              >
+                {hintLoading ? 'Generating hint...' : '💡 Need a hint?'}
+              </button>
+            )}
           </div>
 
           {selectedAnswer && (

@@ -1,3 +1,8 @@
+/**
+ * DEPRECATED: This script is from the old Firebase prototype.
+ * Do not run this. It is kept for historical reference only.
+ * The active PostgreSQL seed file is at prisma/seed.ts
+ */
 import { db } from '../firebase';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';

@@ -96,9 +96,12 @@ model Test {
   id          String   @id @default(uuid())
   userId      String
   user        User     @relation(fields: [userId], references: [id])
+  testType    String   @default("mixed")
   subject     String
   totalMarks  Int
   scoredMarks Int
+  timeLimitMin Int     @default(30)
+  questionCount Int    @default(30)
   takenAt     DateTime @default(now())
 
   testQuestions TestQuestion[]
@@ -111,6 +114,7 @@ model TestQuestion {
   test         Test    @relation(fields: [testId], references: [id])
   questionHash String
   subtopic     String  // critical — weakness detection reads this
+  topicArea    String  @default("aptitude")
   difficulty   Int
   isCorrect    Boolean
   marksAwarded Int     @default(0)

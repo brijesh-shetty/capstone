@@ -3,6 +3,10 @@ import { apiClient } from './services/api';
 import { SearchTopics } from './pages/SearchTopics';
 import { GameSession } from './pages/GameSession';
 import { DashboardPage } from './pages/Dashboard';
+import { StudyPlanPage } from './pages/StudyPlan';
+import { TestPortal } from './pages/TestPortal';
+import { TopicExplainer } from './pages/TopicExplainer';
+import { LeaderboardPage } from './pages/Leaderboard';
 
 interface User {
   id: string;
@@ -29,6 +33,7 @@ const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState('home');
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
   const [selectedTopicName, setSelectedTopicName] = useState<string>('');
+  const [preloadedSession, setPreloadedSession] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -87,6 +92,20 @@ const App: React.FC = () => {
   const handleSelectTopic = (topicId: string, topicName: string) => {
     setSelectedTopicId(topicId);
     setSelectedTopicName(topicName);
+    setPreloadedSession(null);
+    setCurrentPage('game');
+  };
+
+  const handleExplainTopic = (topicId: string, topicName: string) => {
+    setSelectedTopicId(topicId);
+    setSelectedTopicName(topicName);
+    setCurrentPage('topic-explainer');
+  };
+
+  const handleStartPractice = (sessionData: any) => {
+    setSelectedTopicId(sessionData.topicId);
+    setSelectedTopicName(sessionData.topicName);
+    setPreloadedSession(sessionData);
     setCurrentPage('game');
   };
 
@@ -94,6 +113,7 @@ const App: React.FC = () => {
     setCurrentPage('dashboard');
     setSelectedTopicId(null);
     setSelectedTopicName('');
+    setPreloadedSession(null);
   };
 
   return (
@@ -203,7 +223,32 @@ const App: React.FC = () => {
               topicId={selectedTopicId}
               topicName={selectedTopicName}
               onGameComplete={handleGameComplete}
+              preloadedSessionData={preloadedSession}
             />
+          )}
+
+          {currentPage === 'study-plan' && auth.user && (
+            <StudyPlanPage 
+              onSelectTopic={handleSelectTopic} 
+              onExplainTopic={handleExplainTopic} 
+            />
+          )}
+
+          {currentPage === 'topic-explainer' && auth.user && selectedTopicId && (
+            <TopicExplainer
+              topicId={selectedTopicId}
+              topicName={selectedTopicName}
+              onClose={() => setCurrentPage('study-plan')}
+              onStartPractice={handleStartPractice}
+            />
+          )}
+
+          {currentPage === 'test-portal' && auth.user?.role === 'COLLEGE_STUDENT' && (
+            <TestPortal onBack={() => setCurrentPage('dashboard')} />
+          )}
+
+          {currentPage === 'leaderboard' && auth.user && (
+            <LeaderboardPage />
           )}
         </div>
       </div>

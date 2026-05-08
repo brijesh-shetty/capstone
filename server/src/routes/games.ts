@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma';
 import { getQuestions, GeneratedQuestion } from '../services/questionService';
 import { redis } from '../lib/redis';
 import { XP_RULES, awardXp } from '../services/xpService';
+import { masteryQueue } from '../jobs/masteryJob';
 
 const router = Router();
 
@@ -45,6 +46,10 @@ router.post('/session/submit', authMiddleware, async (req: AuthRequest, res: Res
     const { sessionKey, topicId, answers, durationSec } = req.body;
     const userId = req.userId!;
 
+    if (!answers || !Array.isArray(answers) || answers.length === 0) {
+      return res.status(400).json({ error: 'Invalid answers payload' });
+    }
+
     const cached = await redis.get(sessionKey);
     if (!cached) return res.status(400).json({ error: 'Session expired' });
 
@@ -52,6 +57,9 @@ router.post('/session/submit', authMiddleware, async (req: AuthRequest, res: Res
     const qMap = Object.fromEntries(questions.map(q => [q.hash, q]));
 
     let xp = 0;
+    // We will find the session difficulty based on the first question or assume 2
+    const sessionDifficulty = questions[0]?.difficulty || 2;
+
     const attempts = answers.map((a: any) => {
       const q = qMap[a.hash];
       if (!q) throw new Error('Question hash mismatch');
@@ -80,7 +88,7 @@ router.post('/session/submit', authMiddleware, async (req: AuthRequest, res: Res
       data: { 
         userId, 
         topicId, 
-        difficulty: 2, 
+        difficulty: sessionDifficulty, 
         score, 
         xpEarned: xp, 
         durationSec: durationSec || 0, 
@@ -90,7 +98,10 @@ router.post('/session/submit', authMiddleware, async (req: AuthRequest, res: Res
 
     await awardXp(userId, xp);
     
-    // TODO: Phase 3 masteryQueue.add('recalculate', { userId, topicId });
+    await masteryQueue.add('recalculate', { userId, topicId });
+    
+    const { updateStreak } = await import('../services/streakService');
+    await updateStreak(userId);
 
     // Now safe to reveal answers
     res.json({
@@ -106,6 +117,29 @@ router.post('/session/submit', authMiddleware, async (req: AuthRequest, res: Res
   } catch (error) {
     console.error('Submit session error:', error);
     res.status(500).json({ error: 'Failed to submit session' });
+  }
+});
+
+router.post('/hint', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { sessionKey, questionHash } = req.body;
+    
+    const cached = await redis.get(sessionKey);
+    if (!cached) return res.status(400).json({ error: 'Session expired' });
+
+    const sessionData = JSON.parse(cached);
+    const questions: GeneratedQuestion[] = sessionData.questions;
+    
+    const question = questions.find(q => q.hash === questionHash);
+    if (!question) return res.status(404).json({ error: 'Question not found' });
+
+    const { generateHint } = await import('../services/hintService');
+    const hintText = await generateHint(question.questionText, question.options);
+    
+    res.json({ hint: hintText });
+  } catch (error) {
+    console.error('Hint generation error:', error);
+    res.status(500).json({ error: 'Failed to generate hint' });
   }
 });
 

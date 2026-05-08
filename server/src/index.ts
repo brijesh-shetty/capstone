@@ -5,7 +5,11 @@ import authRoutes from './routes/auth';
 import topicsRoutes from './routes/topics';
 import gamesRoutes from './routes/games';
 import dashboardRoutes from './routes/dashboard';
+import testsRoutes from './routes/tests';
+import masteryRoutes from './routes/mastery';
+import leaderboardRoutes from './routes/leaderboard';
 import { authMiddleware } from './middleware/auth';
+import { masteryWorker } from './jobs/masteryJob';
 
 const app: Express = express();
 const PORT = process.env.PORT || 4000;
@@ -19,10 +23,13 @@ app.use('/auth', authRoutes);
 app.use('/topics', topicsRoutes);
 app.use('/games', gamesRoutes);
 app.use('/dashboard', dashboardRoutes);
+app.use('/tests', testsRoutes);
+app.use('/leaderboard', leaderboardRoutes);
+app.use('/', masteryRoutes); // Has /mastery and /study-plan
 
 // Root route
 app.get('/', (req, res) => {
-  res.json({ message: '🎮 LearnHub API Server', status: 'running', endpoints: ['/health', '/auth/login', '/auth/register', '/topics', '/games', '/dashboard'] });
+  res.json({ message: '🎮 LearnHub API Server', status: 'running', endpoints: ['/health', '/auth/login', '/auth/register', '/topics', '/games', '/dashboard', '/tests', '/mastery', '/study-plan'] });
 });
 
 // Health check
