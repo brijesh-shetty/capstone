@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../services/api';
-import { MasteryChart } from '../components/MasteryChart';
 
 interface User {
   id: string;
   name: string;
   email: string;
-  role: string;
   level: number;
   xpTotal: number;
   streakDays: number;
+}
+
+interface AchievementData {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
 }
 
 interface DashboardPageProps {
@@ -30,36 +35,8 @@ const LEVEL_NAMES = [
   'Grandmaster'
 ];
 
-interface RecentGame {
-  id: string;
-  topicName: string;
-  subtopic: string;
-  score: number;
-  xpEarned: number;
-  playedAt: string;
-}
-
-interface DashboardStats {
-  gamesPlayed: number;
-  avgScore: number;
-  recentGames: RecentGame[];
-  recentTests?: Array<{
-    id: string;
-    testType: string;
-    scoredMarks: number;
-    totalMarks: number;
-    takenAt: string;
-  }>;
-  weakTopics?: Array<{
-    topicId: string;
-    subject: string;
-    topic: string;
-    subtopic: string;
-    masteryLevel: number;
-  }>;
-}
-
 export const DashboardPage: React.FC<DashboardPageProps> = ({ user, setCurrentPage }) => {
+  const [userStats, setUserStats] = useState(user);
   const [stats, setStats] = useState({
     gamesPlayed: 0,
     totalXp: user.xpTotal,
@@ -67,9 +44,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ user, setCurrentPa
     nextLevelXp: LEVEL_THRESHOLDS[user.level] || 0,
     currentLevelXp: LEVEL_THRESHOLDS[user.level - 1] || 0
   });
-  
-  const [dashboardData, setDashboardData] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
+
+  const [recentAchievements, setRecentAchievements] = useState<AchievementData[]>([]);
 
   useEffect(() => {
     setStats({
@@ -79,31 +55,20 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ user, setCurrentPa
       nextLevelXp: LEVEL_THRESHOLDS[user.level] || 0,
       currentLevelXp: LEVEL_THRESHOLDS[user.level - 1] || 0
     });
-    
-    fetchDashboardData();
-  }, [user]);
 
-  const fetchDashboardData = async () => {
-    try {
-      const data = await apiClient.get<any>('/dashboard');
-      setDashboardData({
-        gamesPlayed: data.gamesPlayed,
-        avgScore: data.avgScore,
-        recentGames: data.recentGames || []
-      });
-    } catch (error) {
-      console.error('Failed to fetch dashboard data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const fetchRecent = async () => {
+      try {
+        const data = await apiClient.get<AchievementData[]>('/achievements/recent');
+        setRecentAchievements(data);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    fetchRecent();
+  }, [user]);
 
   const xpProgress = ((stats.totalXp - stats.currentLevelXp) / (stats.nextLevelXp - stats.currentLevelXp)) * 100;
   const levelName = LEVEL_NAMES[stats.currentLevel - 1] || 'Unknown';
-
-  if (loading) {
-    return <div className="text-center py-8">Loading your dashboard...</div>;
-  }
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -114,13 +79,13 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ user, setCurrentPa
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         {/* Level Card */}
         <div className="bg-white p-6 rounded-lg shadow-lg">
           <div className="text-center">
             <p className="text-gray-600 text-sm mb-2">Current Level</p>
-            <p className="text-4xl font-bold text-indigo-600 mb-2">{stats.currentLevel}</p>
-            <p className="text-sm text-gray-700 font-semibold">{levelName}</p>
+            <p className="text-5xl font-bold text-indigo-600 mb-2">{stats.currentLevel}</p>
+            <p className="text-lg text-gray-700 font-semibold">{levelName}</p>
           </div>
         </div>
 
@@ -128,19 +93,10 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ user, setCurrentPa
         <div className="bg-white p-6 rounded-lg shadow-lg">
           <div className="text-center">
             <p className="text-gray-600 text-sm mb-2">Total XP</p>
-            <p className="text-3xl font-bold text-green-600 mb-2">{stats.totalXp}</p>
+            <p className="text-4xl font-bold text-green-600 mb-2">{stats.totalXp}</p>
             <p className="text-xs text-gray-500">
               {stats.totalXp - stats.currentLevelXp} / {stats.nextLevelXp - stats.currentLevelXp}
             </p>
-          </div>
-        </div>
-
-        {/* Games Played Card */}
-        <div className="bg-white p-6 rounded-lg shadow-lg">
-          <div className="text-center">
-            <p className="text-gray-600 text-sm mb-2">Games Played</p>
-            <p className="text-4xl font-bold text-blue-600 mb-2">{dashboardData?.gamesPlayed || 0}</p>
-            <p className="text-xs text-gray-500">Avg Score: {dashboardData?.avgScore || 0}%</p>
           </div>
         </div>
 
@@ -148,7 +104,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ user, setCurrentPa
         <div className="bg-white p-6 rounded-lg shadow-lg">
           <div className="text-center">
             <p className="text-gray-600 text-sm mb-2">Daily Streak</p>
-            <p className="text-4xl font-bold text-orange-600 mb-2">{user.streakDays}</p>
+            <p className="text-5xl font-bold text-orange-600 mb-2">{user.streakDays}</p>
             <p className="text-sm text-gray-700">🔥 days</p>
           </div>
         </div>
@@ -169,128 +125,45 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ user, setCurrentPa
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <button
-          onClick={() => setCurrentPage('search')}
-          className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-4 px-6 rounded-lg shadow-lg transition transform hover:scale-105"
+          onClick={() => setCurrentPage('domains')}
+          className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-black text-xl py-6 px-6 rounded-xl shadow-lg transition transform hover:-translate-y-1"
         >
-          🎮 Play Game
+          🚀 Open Learning Domains
         </button>
         <button
-          onClick={() => setCurrentPage('study-plan')}
-          className="bg-purple-500 hover:bg-purple-600 text-white font-bold py-4 px-6 rounded-lg shadow-lg transition transform hover:scale-105"
+          onClick={() => setCurrentPage('interview-hub')}
+          className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-black text-xl py-6 px-6 rounded-xl shadow-lg transition transform hover:-translate-y-1"
         >
-          🎯 Study Plan
+          🎯 Interview Prep
         </button>
         <button
-          onClick={() => setCurrentPage('leaderboard')}
-          className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-4 px-6 rounded-lg shadow-lg transition transform hover:scale-105"
+          onClick={() => setCurrentPage('achievements')}
+          className="bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white font-black text-xl py-6 px-6 rounded-xl shadow-lg transition transform hover:-translate-y-1"
         >
-          🏆 Leaderboard
+          🏆 View Trophy Room
         </button>
-        {user.role === 'COLLEGE_STUDENT' && (
-          <button
-            onClick={() => setCurrentPage('test-portal')}
-            className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-4 px-6 rounded-lg shadow-lg transition transform hover:scale-105"
-          >
-            📝 Diagnostic Test
-          </button>
+      </div>
+
+      {/* Recent Achievements */}
+      <div className="bg-white p-6 rounded-lg shadow-lg">
+        <h3 className="font-bold text-xl mb-4">✨ Recent Achievements</h3>
+        {recentAchievements.length === 0 ? (
+          <p className="text-gray-500 italic">No achievements yet. Start playing to earn some!</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {recentAchievements.map((a) => (
+              <div key={a.id} className="flex items-center p-4 bg-yellow-50 border border-yellow-100 rounded-xl">
+                <span className="text-3xl mr-4">{a.icon}</span>
+                <div className="flex-1">
+                  <p className="font-bold text-gray-900">{a.name}</p>
+                  <p className="text-xs text-gray-600">{a.description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        {/* Mastery Chart */}
-        <MasteryChart />
-
-        {/* Weak Topics */}
-        <div className="bg-white p-6 rounded-lg shadow-lg">
-          <h3 className="font-bold text-xl mb-4 text-red-700">⚠️ Needs Attention</h3>
-          <div className="space-y-3">
-            {dashboardData?.weakTopics && dashboardData.weakTopics.length > 0 ? (
-              dashboardData.weakTopics.map((wt: any) => (
-                <div key={wt.topicId} className="flex justify-between items-center p-3 bg-red-50 rounded border-l-4 border-red-500">
-                  <div>
-                    <p className="font-bold text-gray-800">{wt.subtopic}</p>
-                    <p className="text-xs text-gray-500 uppercase">{wt.subject}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-red-600">{wt.masteryLevel}% Mastery</p>
-                    <button 
-                      onClick={() => setCurrentPage('study-plan')}
-                      className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold mt-1"
-                    >
-                      Review →
-                    </button>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-green-600 font-medium">Great job! No major weak areas detected.</p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        {/* Recent Games */}
-        <div className="bg-white p-6 rounded-lg shadow-lg">
-          <h3 className="font-bold text-xl mb-4">🎮 Recent Games</h3>
-          <div className="space-y-3">
-            {dashboardData?.recentGames && dashboardData.recentGames.length > 0 ? (
-              dashboardData.recentGames.map((game) => (
-                <div key={game.id} className="flex items-center p-3 bg-blue-50 rounded border border-blue-100">
-                  <div className="flex-1">
-                    <p className="font-semibold">{game.topicName}</p>
-                    <p className="text-sm text-gray-600">{game.subtopic}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-blue-600">{game.score}%</p>
-                    <p className="text-xs text-green-600">+{game.xpEarned} XP</p>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="flex items-center p-3 bg-gray-50 rounded">
-                <div className="flex-1">
-                  <p className="font-semibold">No games played yet</p>
-                  <p className="text-sm text-gray-600">Play a game to start earning XP!</p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Recent Tests */}
-        <div className="bg-white p-6 rounded-lg shadow-lg">
-          <h3 className="font-bold text-xl mb-4">📝 Recent Exams</h3>
-          <div className="space-y-3">
-            {dashboardData?.recentTests && dashboardData.recentTests.length > 0 ? (
-              dashboardData.recentTests.map((test: any) => {
-                const percentage = Math.round((test.scoredMarks / test.totalMarks) * 100);
-                return (
-                  <div key={test.id} className="flex items-center p-3 bg-indigo-50 rounded border border-indigo-100">
-                    <div className="flex-1">
-                      <p className="font-semibold capitalize">{test.testType} Exam</p>
-                      <p className="text-xs text-gray-600">{new Date(test.takenAt).toLocaleDateString()}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className={`font-bold ${percentage >= 80 ? 'text-green-600' : percentage < 60 ? 'text-red-600' : 'text-orange-600'}`}>
-                        {test.scoredMarks}/{test.totalMarks} ({percentage}%)
-                      </p>
-                    </div>
-                  </div>
-                );
-              })
-            ) : (
-              <div className="flex items-center p-3 bg-gray-50 rounded">
-                <div className="flex-1">
-                  <p className="font-semibold">No exams taken yet</p>
-                  <p className="text-sm text-gray-600">Take a diagnostic test to assess your readiness!</p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
       </div>
     </div>
   );

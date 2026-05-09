@@ -308,7 +308,7 @@ export const SearchTopics: React.FC<SearchTopicsProps> = ({ onSelectTopic }) => 
                         onMouseEnter={e => (e.currentTarget.style.background = '#4338ca')}
                         onMouseLeave={e => (e.currentTarget.style.background = '#4f46e5')}
                       >
-                        🎮 Play Game
+                        🕹️ Open Arcade
                       </button>
                     </div>
                   </div>
@@ -383,7 +383,7 @@ export const SearchTopics: React.FC<SearchTopicsProps> = ({ onSelectTopic }) => 
               marginTop: '0.5rem',
             }}
           >
-            {generating ? '⏳ Generating questions...' : '🚀 Generate & Play'}
+            {generating ? '⏳ Generating topic...' : '🚀 Open Arcade'}
           </button>
 
           <div style={{

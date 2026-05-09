@@ -19,10 +19,13 @@ model User {
   lastActiveAt DateTime?
   createdAt    DateTime  @default(now())
 
-  gameSessions  GameSession[]
-  masteryScores MasteryScore[]
-  tests         Test[]
-  studyPlans    StudyPlan[]
+  gameSessions     GameSession[]
+  masteryScores    MasteryScore[]
+  tests            Test[]
+  studyPlans       StudyPlan[]
+  domainProgress   UserDomainProgress[]
+  userAchievements UserAchievement[]
+  interviewProgress UserInterviewProgress[]
 }
 
 enum Role {
@@ -40,6 +43,9 @@ model Topic {
   topic     String   // e.g. "Thermodynamics"
   subtopic  String   // e.g. "Carnot cycle"  ← this is what Claude receives
   isActive  Boolean  @default(true)
+  domainId  String?
+  domain    Domain?  @relation(fields: [domainId], references: [id])
+  levelOrder Int     @default(1)    // 1=beginner, 2, 3... higher=harder
   createdAt DateTime @default(now())
 
   gameSessions  GameSession[]
@@ -54,6 +60,7 @@ model GameSession {
   user        User     @relation(fields: [userId], references: [id])
   topicId     String
   topic       Topic    @relation(fields: [topicId], references: [id])
+  gameType    GameType @default(MCQ)
   difficulty  Int      @default(2)
   score       Int      @default(0)
   xpEarned    Int      @default(0)
@@ -61,6 +68,16 @@ model GameSession {
   playedAt    DateTime @default(now())
 
   attempts QuestionAttempt[]
+}
+
+enum GameType {
+  MCQ
+  MEMORY_MATCH
+  WORD_SCRAMBLE
+  CROSSWORD
+  HANGMAN
+  FILL_BLANK
+  CONCEPT_CANNON
 }
 
 // Stores per-question result without storing the question itself.
@@ -138,4 +155,135 @@ enum Priority {
   HIGH
   MEDIUM
   LOW
+}
+
+model Domain {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  name        String
+  icon        String
+  description String
+  color       String
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  topics       Topic[]
+  userProgress UserDomainProgress[]
+}
+
+model UserDomainProgress {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  domainId        String
+  domain          Domain   @relation(fields: [domainId], references: [id])
+  currentLevel    Int      @default(1)
+  totalXpInDomain Int      @default(0)
+  rank            String   @default("Bronze Coder")
+  updatedAt       DateTime @updatedAt
+
+  @@unique([userId, domainId])
+}
+
+model Achievement {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  name        String
+  description String
+  icon        String
+  category    String
+  xpReward    Int      @default(0)
+  condition   String
+  createdAt   DateTime @default(now())
+
+  userAchievements UserAchievement[]
+}
+
+model UserAchievement {
+  id            String      @id @default(uuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id])
+  achievementId String
+  achievement   Achievement @relation(fields: [achievementId], references: [id])
+  earnedAt      DateTime    @default(now())
+
+  @@unique([userId, achievementId])
+}
+
+// ===== INTERVIEW PREP MODELS =====
+
+model InterviewCategory {
+  id          String   @id @default(uuid())
+  section     String   // "A", "B", "C"
+  name        String   // "Quantitative Aptitude", "Logical Reasoning", "Verbal Ability"
+  slug        String   @unique // "quantitative-aptitude", "logical-reasoning", "verbal-ability"
+  icon        String   // emoji
+  description String
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  topics    InterviewTopic[]
+}
+
+model InterviewTopic {
+  id          String   @id @default(uuid())
+  name        String   // "Number System", "Percentages", "Calendars", etc.
+  slug        String   // "number-system"
+  categoryId  String
+  category    InterviewCategory @relation(fields: [categoryId], references: [id])
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  questions   InterviewQuestion[]
+  theory      InterviewTheory?
+  progress    UserInterviewProgress[]
+
+  @@unique([categoryId, slug])
+}
+
+model InterviewQuestion {
+  id              String   @id @default(uuid())
+  topicId         String
+  topic           InterviewTopic @relation(fields: [topicId], references: [id])
+  questionNumber  Int
+  question        String
+  optionA         String
+  optionB         String
+  optionC         String
+  optionD         String
+  optionE         String?
+  correctAnswer   String   // "A", "B", "C", "D" — from solved JSON
+  correctIndex    Int      // 0-indexed — from solved JSON
+  difficulty      String   @default("medium") // easy, medium, hard
+  sourceRef       String?  // "The Aptitude Triad"
+  createdAt       DateTime @default(now())
+}
+
+model InterviewTheory {
+  id              String   @id @default(uuid())
+  topicId         String   @unique
+  topic           InterviewTopic @relation(fields: [topicId], references: [id])
+  rawTheory       String   // full theory text from JSON
+  keyPoints       Json     // string[] from quick_notes.keyPoints
+  formulas        Json     // string[] from quick_notes.formulas
+  tutorialSections Json    // [{heading, content}] from tutorial_sections
+  formulaCount    Int      @default(0)
+  exampleCount    Int      @default(0)
+  conceptCount    Int      @default(0)
+  cleanedAt       DateTime?
+}
+
+model UserInterviewProgress {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  topicId     String
+  topic       InterviewTopic @relation(fields: [topicId], references: [id])
+  gamesPlayed Int      @default(0)
+  bestScore   Int      @default(0)
+  avgScore    Float    @default(0)
+  totalXp     Int      @default(0)
+  lastPlayedAt DateTime?
+
+  @@unique([userId, topicId])
 }

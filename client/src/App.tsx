@@ -2,11 +2,29 @@ import React, { useState, useEffect } from 'react';
 import { apiClient } from './services/api';
 import { SearchTopics } from './pages/SearchTopics';
 import { GameSession } from './pages/GameSession';
+import { GameArcade } from './pages/GameArcade';
+import { MemoryMatch } from './pages/games/MemoryMatch';
+import { WordScramble } from './pages/games/WordScramble';
+import { CrosswordPuzzle } from './pages/games/CrosswordPuzzle';
+import { Hangman } from './pages/games/Hangman';
+import { FillTheBlank } from './pages/games/FillTheBlank';
+import { ConceptCannon } from './pages/games/ConceptCannon';
 import { DashboardPage } from './pages/Dashboard';
-import { StudyPlanPage } from './pages/StudyPlan';
-import { TestPortal } from './pages/TestPortal';
-import { TopicExplainer } from './pages/TopicExplainer';
-import { LeaderboardPage } from './pages/Leaderboard';
+
+import { InterviewHub } from './pages/InterviewHub';
+import { InterviewCategory } from './pages/InterviewCategory';
+import { InterviewTheory } from './pages/InterviewTheory';
+import { InterviewQuiz } from './pages/InterviewQuiz';
+import { InterviewGameSelect } from './pages/InterviewGameSelect';
+import { FormulaFlashCards } from './pages/games/FormulaFlashCards';
+import { FormulaMatch } from './pages/games/FormulaMatch';
+import { ConceptSprint } from './pages/games/ConceptSprint';
+
+import { DomainSelection } from './pages/DomainSelection';
+import { DomainJourney } from './pages/DomainJourney';
+import { ConceptTutorial } from './pages/ConceptTutorial';
+import { AchievementsPage } from './pages/AchievementsPage';
+import { AchievementToast } from './components/AchievementToast';
 
 interface User {
   id: string;
@@ -30,17 +48,54 @@ const App: React.FC = () => {
     token: localStorage.getItem('token'),
     loading: false
   });
-  const [currentPage, setCurrentPage] = useState('home');
-  const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
-  const [selectedTopicName, setSelectedTopicName] = useState<string>('');
-  const [preloadedSession, setPreloadedSession] = useState<any>(null);
+  const [currentPage, setCurrentPage] = useState(() => sessionStorage.getItem('currentPage') || 'home');
+  const [selectedTopicId, setSelectedTopicId] = useState<string | null>(() => sessionStorage.getItem('selectedTopicId'));
+  const [selectedTopicName, setSelectedTopicName] = useState<string>(() => sessionStorage.getItem('selectedTopicName') || '');
+  const [selectedGameType, setSelectedGameType] = useState<string | null>(() => sessionStorage.getItem('selectedGameType'));
   const [error, setError] = useState<string | null>(null);
+
+  const [selectedDomainSlug, setSelectedDomainSlug] = useState<string | null>(() => sessionStorage.getItem('selectedDomainSlug'));
+  const [selectedInterviewCategorySlug, setSelectedInterviewCategorySlug] = useState<string | null>(() => sessionStorage.getItem('selectedInterviewCategorySlug'));
+  const [selectedInterviewTopicId, setSelectedInterviewTopicId] = useState<string | null>(() => sessionStorage.getItem('selectedInterviewTopicId'));
+  const [achievementQueue, setAchievementQueue] = useState<any[]>([]);
 
   useEffect(() => {
     if (auth.token) {
       apiClient.setToken(auth.token);
     }
   }, [auth.token]);
+
+  useEffect(() => {
+    sessionStorage.setItem('currentPage', currentPage);
+    if (selectedTopicId) sessionStorage.setItem('selectedTopicId', selectedTopicId); else sessionStorage.removeItem('selectedTopicId');
+    if (selectedTopicName) sessionStorage.setItem('selectedTopicName', selectedTopicName); else sessionStorage.removeItem('selectedTopicName');
+    if (selectedGameType) sessionStorage.setItem('selectedGameType', selectedGameType); else sessionStorage.removeItem('selectedGameType');
+    if (selectedDomainSlug) sessionStorage.setItem('selectedDomainSlug', selectedDomainSlug); else sessionStorage.removeItem('selectedDomainSlug');
+    if (selectedInterviewCategorySlug) sessionStorage.setItem('selectedInterviewCategorySlug', selectedInterviewCategorySlug); else sessionStorage.removeItem('selectedInterviewCategorySlug');
+    if (selectedInterviewTopicId) sessionStorage.setItem('selectedInterviewTopicId', selectedInterviewTopicId); else sessionStorage.removeItem('selectedInterviewTopicId');
+  }, [currentPage, selectedTopicId, selectedTopicName, selectedGameType, selectedDomainSlug, selectedInterviewCategorySlug, selectedInterviewTopicId]);
+
+  // Intercept fetch responses globally for achievements if possible, or just poll
+  // A simple hack: check for achievements globally in responses
+  useEffect(() => {
+    const originalFetch = window.fetch;
+    window.fetch = async (...args) => {
+      const response = await originalFetch(...args);
+      const cloned = response.clone();
+      try {
+        const data = await cloned.json();
+        if (data && data.earnedAchievements && data.earnedAchievements.length > 0) {
+          setAchievementQueue(prev => [...prev, ...data.earnedAchievements]);
+        }
+      } catch (e) {
+        // Not JSON or other error
+      }
+      return response;
+    };
+    return () => {
+      window.fetch = originalFetch;
+    };
+  }, []);
 
   const handleRegister = async (name: string, email: string, password: string, role: string) => {
     setError(null);
@@ -92,20 +147,13 @@ const App: React.FC = () => {
   const handleSelectTopic = (topicId: string, topicName: string) => {
     setSelectedTopicId(topicId);
     setSelectedTopicName(topicName);
-    setPreloadedSession(null);
-    setCurrentPage('game');
+    setCurrentPage('arcade');
   };
 
-  const handleExplainTopic = (topicId: string, topicName: string) => {
+  const handleSelectGame = (topicId: string, topicName: string, gameType: string) => {
     setSelectedTopicId(topicId);
     setSelectedTopicName(topicName);
-    setCurrentPage('topic-explainer');
-  };
-
-  const handleStartPractice = (sessionData: any) => {
-    setSelectedTopicId(sessionData.topicId);
-    setSelectedTopicName(sessionData.topicName);
-    setPreloadedSession(sessionData);
+    setSelectedGameType(gameType);
     setCurrentPage('game');
   };
 
@@ -113,13 +161,32 @@ const App: React.FC = () => {
     setCurrentPage('dashboard');
     setSelectedTopicId(null);
     setSelectedTopicName('');
-    setPreloadedSession(null);
+    setSelectedGameType(null);
+    
+    // Refresh user object to get new XP
+    apiClient.get<User>('/protected').then(res => {
+      // In a real app we'd fetch the user profile. For now, we assume Dashboard will refetch or we just wait.
+      // Wait, `/protected` doesn't return full user.
+    }).catch(() => {});
+  };
+
+  const dismissToast = () => {
+    setAchievementQueue(prev => prev.slice(1));
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 relative">
+      {/* Achievement Toasts */}
+      {achievementQueue.length > 0 && (
+        <AchievementToast 
+          key={achievementQueue[0].id} 
+          achievement={achievementQueue[0]} 
+          onDismiss={dismissToast} 
+        />
+      )}
+
       {/* Navigation */}
-      <nav className="bg-white shadow-lg">
+      <nav className="bg-white shadow-lg relative z-40">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           <button
             onClick={() => {
@@ -135,7 +202,6 @@ const App: React.FC = () => {
               <div className="flex items-center gap-4">
                 <div className="text-right">
                   <p className="font-semibold text-gray-800">{auth.user.name}</p>
-                  <p className="text-xs text-gray-600">Level {auth.user.level} • {auth.user.xpTotal} XP</p>
                 </div>
                 <button
                   onClick={handleLogout}
@@ -168,92 +234,245 @@ const App: React.FC = () => {
             )}
           </div>
         </div>
-        </nav>
+      </nav>
 
-        {/* Error Message */}
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 max-w-7xl mx-auto mt-4 rounded">
-            {error}
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 max-w-7xl mx-auto mt-4 rounded">
+          {error}
+        </div>
+      )}
+
+      {/* Page Content */}
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {currentPage === 'home' && !auth.user && (
+          <div className="text-center">
+            <h2 className="text-5xl font-bold text-gray-800 mb-4">Welcome to LearnHub</h2>
+            <p className="text-xl text-gray-600 mb-8">
+              🎓 Learn through gamified quizzes • 🎮 Play engaging games • 🏆 Earn XP and level up!
+            </p>
+            <div className="space-x-4">
+              <button
+                onClick={() => setCurrentPage('login')}
+                className="px-8 py-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-bold text-lg"
+              >
+                Login
+              </button>
+              <button
+                onClick={() => setCurrentPage('register')}
+                className="px-8 py-4 bg-green-500 text-white rounded-lg hover:bg-green-600 font-bold text-lg"
+              >
+                Sign Up
+              </button>
+            </div>
           </div>
         )}
 
-        {/* Page Content */}
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          {currentPage === 'home' && !auth.user && (
-            <div className="text-center">
-              <h2 className="text-5xl font-bold text-gray-800 mb-4">Welcome to LearnHub</h2>
-              <p className="text-xl text-gray-600 mb-8">
-                🎓 Learn through gamified quizzes • 🎮 Play engaging games • 🏆 Earn XP and level up!
-              </p>
-              <div className="space-x-4">
-                <button
-                  onClick={() => setCurrentPage('login')}
-                  className="px-8 py-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-bold text-lg"
-                >
-                  Login
-                </button>
-                <button
-                  onClick={() => setCurrentPage('register')}
-                  className="px-8 py-4 bg-green-500 text-white rounded-lg hover:bg-green-600 font-bold text-lg"
-                >
-                  Sign Up
-                </button>
-              </div>
+        {currentPage === 'login' && !auth.user && (
+          <LoginPage onLogin={handleLogin} loading={auth.loading} />
+        )}
+
+        {currentPage === 'register' && !auth.user && (
+          <RegisterPage onRegister={handleRegister} loading={auth.loading} />
+        )}
+
+        {currentPage === 'dashboard' && auth.user && (
+          <DashboardPage user={auth.user} setCurrentPage={setCurrentPage} />
+        )}
+
+        {/* DOMAIN HUB ROUTES */}
+        {currentPage === 'domains' && auth.user && (
+          <DomainSelection 
+            onSelectDomain={(slug) => { setSelectedDomainSlug(slug); setCurrentPage('journey'); }}
+            onBack={() => setCurrentPage('dashboard')}
+          />
+        )}
+
+        {currentPage === 'journey' && auth.user && selectedDomainSlug && (
+          <DomainJourney
+            domainSlug={selectedDomainSlug}
+            onSelectTopic={(id, name) => { handleSelectTopic(id, name); }}
+            onLearnConcept={(id) => { setSelectedTopicId(id); setCurrentPage('tutorial'); }}
+            onBack={() => setCurrentPage('domains')}
+          />
+        )}
+
+        {currentPage === 'tutorial' && auth.user && selectedTopicId && (
+          <ConceptTutorial
+            topicId={selectedTopicId}
+            onReadyToPlay={() => { 
+              setCurrentPage('arcade'); 
+            }}
+            onBack={() => setCurrentPage('journey')}
+          />
+        )}
+
+        {currentPage === 'achievements' && auth.user && (
+          <AchievementsPage onBack={() => setCurrentPage('dashboard')} />
+        )}
+
+        {/* INTERVIEW PREP ROUTES */}
+        {currentPage === 'interview-hub' && auth.user && (
+          <InterviewHub
+            onSelectCategory={(slug) => {
+              setSelectedInterviewCategorySlug(slug);
+              setCurrentPage('interview-category');
+            }}
+            onBack={() => setCurrentPage('dashboard')}
+          />
+        )}
+
+        {currentPage === 'interview-category' && auth.user && selectedInterviewCategorySlug && (
+          <InterviewCategory
+            categorySlug={selectedInterviewCategorySlug}
+            onSelectTheory={(topicId) => {
+              setSelectedInterviewTopicId(topicId);
+              setCurrentPage('interview-theory');
+            }}
+            onSelectQuiz={(topicId, topicName) => {
+              setSelectedInterviewTopicId(topicId);
+              setSelectedTopicName(topicName); // Reuse this for simplicity
+              setCurrentPage('interview-quiz');
+            }}
+            onSelectGames={(topicId, topicName) => {
+              setSelectedInterviewTopicId(topicId);
+              setSelectedTopicName(topicName);
+              setCurrentPage('interview-game-select');
+            }}
+            onBack={() => setCurrentPage('interview-hub')}
+          />
+        )}
+
+        {currentPage === 'interview-theory' && auth.user && selectedInterviewTopicId && (
+          <InterviewTheory
+            topicId={selectedInterviewTopicId}
+            onReadyToPractice={() => setCurrentPage('interview-quiz')}
+            onBack={() => setCurrentPage('interview-category')}
+          />
+        )}
+
+        {currentPage === 'interview-quiz' && auth.user && selectedInterviewTopicId && (
+          <InterviewQuiz
+            topicId={selectedInterviewTopicId}
+            topicName={selectedTopicName}
+            onComplete={() => setCurrentPage('interview-hub')}
+            onReviewTheory={() => setCurrentPage('interview-theory')}
+          />
+        )}
+
+        {currentPage === 'interview-game-select' && auth.user && selectedInterviewTopicId && (
+          <InterviewGameSelect
+            topicId={selectedInterviewTopicId}
+            topicName={selectedTopicName}
+            onSelectGame={(gameId) => setCurrentPage(`interview-${gameId}`)}
+            onBack={() => setCurrentPage('interview-category')}
+          />
+        )}
+
+        {currentPage === 'interview-flashcards' && auth.user && selectedInterviewTopicId && (
+          <FormulaFlashCards
+            topicId={selectedInterviewTopicId}
+            topicName={selectedTopicName}
+            onComplete={() => setCurrentPage('interview-game-select')}
+          />
+        )}
+
+        {currentPage === 'interview-match' && auth.user && selectedInterviewTopicId && (
+          <FormulaMatch
+            topicId={selectedInterviewTopicId}
+            topicName={selectedTopicName}
+            onComplete={() => setCurrentPage('interview-game-select')}
+          />
+        )}
+
+        {currentPage === 'interview-sprint' && auth.user && selectedInterviewTopicId && (
+          <ConceptSprint
+            topicId={selectedInterviewTopicId}
+            topicName={selectedTopicName}
+            onComplete={() => setCurrentPage('interview-game-select')}
+          />
+        )}
+
+        {/* LEGACY SEARCH TOPICS */}
+        {currentPage === 'search' && auth.user && (
+          <SearchTopics onSelectTopic={handleSelectTopic} />
+        )}
+
+        {/* GAME ARCADE ROUTES */}
+        {currentPage === 'arcade' && auth.user && selectedTopicId && (
+          <GameArcade
+            topicId={selectedTopicId}
+            topicName={selectedTopicName}
+            onSelectGame={handleSelectGame}
+            onBack={() => setCurrentPage('journey')}
+          />
+        )}
+
+        {currentPage === 'game' && auth.user && selectedTopicId && selectedGameType && (
+          <div>
+            <div className="mb-6 max-w-4xl mx-auto">
+              <button 
+                onClick={() => setCurrentPage('arcade')} 
+                className="text-red-500 hover:text-red-700 font-bold transition-colors flex items-center"
+              >
+                <span className="mr-2">🚪</span> Quit Game & Return to Arcade
+              </button>
             </div>
-          )}
-
-          {currentPage === 'login' && !auth.user && (
-            <LoginPage onLogin={handleLogin} loading={auth.loading} />
-          )}
-
-          {currentPage === 'register' && !auth.user && (
-            <RegisterPage onRegister={handleRegister} loading={auth.loading} />
-          )}
-
-          {currentPage === 'dashboard' && auth.user && (
-            <DashboardPage user={auth.user} setCurrentPage={setCurrentPage} />
-          )}
-
-          {currentPage === 'search' && auth.user && (
-            <SearchTopics onSelectTopic={handleSelectTopic} />
-          )}
-
-          {currentPage === 'game' && auth.user && selectedTopicId && (
-            <GameSession
-              topicId={selectedTopicId}
-              topicName={selectedTopicName}
-              onGameComplete={handleGameComplete}
-              preloadedSessionData={preloadedSession}
-            />
-          )}
-
-          {currentPage === 'study-plan' && auth.user && (
-            <StudyPlanPage 
-              onSelectTopic={handleSelectTopic} 
-              onExplainTopic={handleExplainTopic} 
-            />
-          )}
-
-          {currentPage === 'topic-explainer' && auth.user && selectedTopicId && (
-            <TopicExplainer
-              topicId={selectedTopicId}
-              topicName={selectedTopicName}
-              onClose={() => setCurrentPage('study-plan')}
-              onStartPractice={handleStartPractice}
-            />
-          )}
-
-          {currentPage === 'test-portal' && auth.user?.role === 'COLLEGE_STUDENT' && (
-            <TestPortal onBack={() => setCurrentPage('dashboard')} />
-          )}
-
-          {currentPage === 'leaderboard' && auth.user && (
-            <LeaderboardPage />
-          )}
-        </div>
+            {selectedGameType === 'MCQ' && (
+              <GameSession
+                topicId={selectedTopicId}
+                topicName={selectedTopicName}
+                onGameComplete={handleGameComplete}
+              />
+            )}
+            {selectedGameType === 'MEMORY_MATCH' && (
+              <MemoryMatch
+                topicId={selectedTopicId}
+                topicName={selectedTopicName}
+                onGameComplete={handleGameComplete}
+              />
+            )}
+            {selectedGameType === 'WORD_SCRAMBLE' && (
+              <WordScramble
+                topicId={selectedTopicId}
+                topicName={selectedTopicName}
+                onGameComplete={handleGameComplete}
+              />
+            )}
+            {selectedGameType === 'CROSSWORD' && (
+              <CrosswordPuzzle
+                topicId={selectedTopicId}
+                topicName={selectedTopicName}
+                onGameComplete={handleGameComplete}
+              />
+            )}
+            {selectedGameType === 'HANGMAN' && (
+              <Hangman
+                topicId={selectedTopicId}
+                topicName={selectedTopicName}
+                onGameComplete={handleGameComplete}
+              />
+            )}
+            {selectedGameType === 'FILL_BLANK' && (
+              <FillTheBlank
+                topicId={selectedTopicId}
+                topicName={selectedTopicName}
+                onGameComplete={handleGameComplete}
+              />
+            )}
+            {selectedGameType === 'CONCEPT_CANNON' && (
+              <ConceptCannon
+                topicId={selectedTopicId}
+                topicName={selectedTopicName}
+                onGameComplete={handleGameComplete}
+              />
+            )}
+          </div>
+        )}
       </div>
-    );
-  };
+    </div>
+  );
+};
 
 const LoginPage: React.FC<{ onLogin: (email: string, password: string) => void; loading: boolean }> = ({ onLogin, loading }) => {
   const [email, setEmail] = useState('student@example.com');
