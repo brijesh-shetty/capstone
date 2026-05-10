@@ -125,12 +125,12 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ user, setCurrentPa
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <button
           onClick={() => setCurrentPage('domains')}
           className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-black text-xl py-6 px-6 rounded-xl shadow-lg transition transform hover:-translate-y-1"
         >
-          🚀 Open Learning Domains
+          🚀 Learning Domains
         </button>
         <button
           onClick={() => setCurrentPage('interview-hub')}
@@ -139,10 +139,16 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ user, setCurrentPa
           🎯 Interview Prep
         </button>
         <button
+          onClick={() => setCurrentPage('leaderboard')}
+          className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-black text-xl py-6 px-6 rounded-xl shadow-lg transition transform hover:-translate-y-1"
+        >
+          📊 Leaderboard
+        </button>
+        <button
           onClick={() => setCurrentPage('achievements')}
           className="bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white font-black text-xl py-6 px-6 rounded-xl shadow-lg transition transform hover:-translate-y-1"
         >
-          🏆 View Trophy Room
+          🏆 Trophy Room
         </button>
       </div>
 

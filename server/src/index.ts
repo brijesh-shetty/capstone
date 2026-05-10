@@ -8,6 +8,7 @@ import dashboardRoutes from './routes/dashboard';
 import domainsRoutes from './routes/domains';
 import achievementsRoutes from './routes/achievements';
 import interviewRoutes from './routes/interview';
+import leaderboardRoutes from './routes/leaderboard';
 import { authMiddleware } from './middleware/auth';
 
 const app: Express = express();
@@ -25,6 +26,7 @@ app.use('/dashboard', dashboardRoutes);
 app.use('/domains', domainsRoutes);
 app.use('/achievements', achievementsRoutes);
 app.use('/interview', interviewRoutes);
+app.use('/leaderboard', leaderboardRoutes);
 
 // Root route
 app.get('/', (req, res) => {

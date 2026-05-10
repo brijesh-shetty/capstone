@@ -25,6 +25,7 @@ import { DomainJourney } from './pages/DomainJourney';
 import { ConceptTutorial } from './pages/ConceptTutorial';
 import { AchievementsPage } from './pages/AchievementsPage';
 import { AchievementToast } from './components/AchievementToast';
+import { LeaderboardPage } from './pages/Leaderboard';
 
 interface User {
   id: string;
@@ -309,6 +310,20 @@ const App: React.FC = () => {
 
         {currentPage === 'achievements' && auth.user && (
           <AchievementsPage onBack={() => setCurrentPage('dashboard')} />
+        )}
+
+        {currentPage === 'leaderboard' && auth.user && (
+          <div>
+            <div className="mb-4">
+              <button
+                onClick={() => setCurrentPage('dashboard')}
+                className="text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-2"
+              >
+                ← Back to Dashboard
+              </button>
+            </div>
+            <LeaderboardPage />
+          </div>
         )}
 
         {/* INTERVIEW PREP ROUTES */}
