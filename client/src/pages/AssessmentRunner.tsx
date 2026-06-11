@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Editor from '@monaco-editor/react';
 import { apiClient } from '../services/api';
 import { useProctoring, enterFullscreen } from '../hooks/useProctoring';
+import { SelfViewCamera } from '../components/SelfViewCamera';
 
 // Student test runner: consent screen → sectioned navigator + server-synced
 // countdown + debounced autosave → review grid → submit → scorecard.
@@ -69,9 +70,10 @@ export const AssessmentRunner: React.FC<{
   const submittingRef = useRef(false);
 
   const proctored = payload?.test.mode === 'PROCTORED';
-  const { warning: proctorWarning, cameraOn } = useProctoring(
+  const proctoringActive = !!proctored && (phase === 'running' || phase === 'review-grid');
+  const { warning: proctorWarning, cameraOn, faceStatus } = useProctoring(
     payload?.attemptId ?? null,
-    !!proctored && (phase === 'running' || phase === 'review-grid')
+    proctoringActive
   );
 
   // ---- load / start attempt ----
@@ -473,6 +475,8 @@ export const AssessmentRunner: React.FC<{
           ⚠️ {proctorWarning} This is informational and was added to the attempt log.
         </div>
       )}
+      <SelfViewCamera active={proctoringActive} proctoring={proctoringActive} faceStatus={faceStatus} />
+
       {/* navigator */}
       <div className="lg:w-56 shrink-0 bg-white rounded-xl shadow p-4 h-fit lg:sticky lg:top-4">
         <div className={`text-2xl font-black text-center mb-3 ${remaining < 300 ? 'text-red-600 animate-pulse' : ''}`}>

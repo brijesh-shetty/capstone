@@ -567,6 +567,7 @@ model AiInterview {
   overallScore Float?
   rubricScores Json? // { technical, communication, structure, problemSolving, roleFit } 0–5 each
   summary      String?
+  proctoringSummary Json? // face-presence event counts from the video interview — signal, not verdict
 
   turns AiInterviewTurn[]
 }

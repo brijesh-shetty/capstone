@@ -6,6 +6,7 @@ import {
   finishInterview,
   getInterview,
   listInterviews,
+  recordProctoringSummary,
 } from '../services/aiInterviewService';
 
 const router = Router();
@@ -46,6 +47,16 @@ router.post('/:id/finish', authMiddleware, async (req: AuthRequest, res: Respons
   } catch (error: any) {
     console.error('Interview finish error:', error);
     res.status(400).json({ error: error.message || 'Failed to finish interview' });
+  }
+});
+
+// POST /ai-interview/:id/proctoring-summary { counts } — face-presence signal
+// from the video interview (FACE_NOT_DETECTED / MULTIPLE_FACES / NO_CAMERA)
+router.post('/:id/proctoring-summary', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    res.json(await recordProctoringSummary(req.params.id, req.userId!, req.body?.counts));
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Failed to record summary' });
   }
 });
 

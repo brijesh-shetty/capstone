@@ -19,6 +19,7 @@ interface Interview {
   overallScore: number | null;
   rubricScores: Record<string, number> | null;
   summary: { strengths: string[]; gaps: string[]; nextSteps: string[] } | null;
+  proctoringSummary?: Record<string, number> | null;
   maxQuestions: number;
   turns: Turn[];
 }
@@ -33,7 +34,11 @@ const RUBRIC_LABELS: Record<string, string> = {
   roleFit: 'Role fit',
 };
 
-export const InterviewChat: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+export const InterviewChat: React.FC<{
+  onBack: () => void;
+  onStartVideo?: (role: string, companyId: string | null) => void;
+  initialInterviewId?: string | null;
+}> = ({ onBack, onStartVideo, initialInterviewId }) => {
   const [past, setPast] = useState<any[]>([]);
   const [interview, setInterview] = useState<Interview | null>(null);
   const [role, setRole] = useState(ROLES[0]);
@@ -47,7 +52,11 @@ export const InterviewChat: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   useEffect(() => {
     apiClient.get<any[]>('/ai-interview').then(setPast).catch(() => {});
     apiClient.get<any[]>('/companies').then((cs) => setCompanies(cs.filter((c) => c.hasInterviewStyle))).catch(() => {});
-  }, []);
+    if (initialInterviewId) {
+      // arriving from the video interview room — open its report directly
+      apiClient.get<Interview>(`/ai-interview/${initialInterviewId}`).then(setInterview).catch(() => {});
+    }
+  }, [initialInterviewId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -126,6 +135,17 @@ export const InterviewChat: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             ))}
           </div>
         </div>
+
+        {interview.proctoringSummary &&
+          Object.entries(interview.proctoringSummary).some(([k, v]) => k !== 'faceChecks' && v > 0) && (
+          <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl mb-6 text-sm">
+            <b>📷 Camera signal (informational, not a verdict):</b>{' '}
+            {Object.entries(interview.proctoringSummary)
+              .filter(([k, v]) => k !== 'faceChecks' && v > 0)
+              .map(([k, v]) => `${k.split('_').join(' ').toLowerCase()} ×${v}`)
+              .join(' · ')}
+          </div>
+        )}
 
         {interview.summary && (
           <div className="grid md:grid-cols-3 gap-4 mb-6">
@@ -224,9 +244,15 @@ export const InterviewChat: React.FC<{ onBack: () => void }> = ({ onBack }) => {
           {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
         {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-3 text-sm">{error}</div>}
+        {onStartVideo && (
+          <button onClick={() => onStartVideo(role, companyId || null)}
+            className="w-full py-3 rounded-xl font-black text-white bg-gradient-to-r from-violet-600 to-fuchsia-600 mb-3">
+            📹 Start Face-to-Face Interview (voice + avatar)
+          </button>
+        )}
         <button onClick={start} disabled={busy}
           className="w-full py-3 rounded-xl font-black text-white bg-gradient-to-r from-indigo-500 to-purple-600 disabled:opacity-40">
-          {busy ? 'Setting up…' : '🎙 Start Interview'}
+          {busy ? 'Setting up…' : '💬 Start Text Interview'}
         </button>
       </div>
 

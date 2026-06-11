@@ -38,6 +38,20 @@ monitored.
   (run `npx ts-node scripts/purge-snapshots.ts`, or schedule it).
 - Activity events (no images) are retained with the attempt for reporting.
 
+## Face-to-face AI interview (camera + microphone)
+
+- The video interview asks for **separate, explicit camera and microphone
+  consent** before it starts; denying either falls back to a text-only
+  interview — voice and video are enhancements, never requirements.
+- The interviewer is always labeled a **synthetic AI** — it is not a real
+  person, and the avatar never depicts a real, identifiable person.
+- What is stored: the **text transcript** of both sides and face-presence
+  event **counts** (`FACE_NOT_DETECTED`, `MULTIPLE_FACES`, `NO_CAMERA`) on the
+  interview record, shown in the report as an informational signal.
+- What is NOT stored: raw microphone audio, raw video, or webcam snapshots —
+  the interview records no media at all.
+- Captions can be toggled on at any time for accessibility.
+
 ## Student-visible statement (shown on the consent screen)
 
 > This is a proctored test: tab switches, fullscreen exits, and copy/paste are

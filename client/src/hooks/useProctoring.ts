@@ -1,19 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiClient } from '../services/api';
+import { useCameraStream } from './useCameraStream';
+import { useFacePresence, FaceStatus } from './useFacePresence';
 
 // Client-side proctoring for PROCTORED attempts.
 // - Activity signals: tab blur/focus, fullscreen exit, copy/paste → batched
 //   to POST /assessments/attempts/:id/events every few seconds.
-// - Camera presence: getUserMedia + MediaPipe FaceDetector (no identity
-//   recognition — presence only). FACE_NOT_DETECTED after ~3 misses,
-//   MULTIPLE_FACES, NO_CAMERA.
+// - Camera: consumes the page's SINGLE shared stream (useCameraStream) — the
+//   SelfViewCamera tile uses the same one; getUserMedia is never called twice.
+// - Face presence via useFacePresence (presence only, no identity).
 // - Low-res snapshots every SNAPSHOT_EVERY_MS, stored server-side for the
 //   admin report only.
 // Warnings shown to the student are informational, never punitive.
 
 const FLUSH_EVERY_MS = 5_000;
-const FACE_CHECK_EVERY_MS = 3_000;
-const FACE_MISSES_BEFORE_EVENT = 3;
 const SNAPSHOT_EVERY_MS = 60_000;
 
 type EventType =
@@ -32,12 +32,9 @@ const WARNINGS: Partial<Record<EventType, string>> = {
 
 export function useProctoring(attemptId: string | null, active: boolean) {
   const [warning, setWarning] = useState<string | null>(null);
-  const [cameraOn, setCameraOn] = useState(false);
   const queue = useRef<{ type: EventType; meta?: any; at: string }[]>([]);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const faceMisses = useRef(0);
   const warningTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const noCameraReported = useRef(false);
 
   const record = useCallback((type: EventType, meta?: any) => {
     queue.current.push({ type, meta, at: new Date().toISOString() });
@@ -48,6 +45,22 @@ export function useProctoring(attemptId: string | null, active: boolean) {
       warningTimer.current = setTimeout(() => setWarning(null), 6000);
     }
   }, []);
+
+  // ---- shared camera + face presence ----
+  const { stream, status: cameraStatus } = useCameraStream(active && !!attemptId);
+  const { faceStatus, captureFrame } = useFacePresence(stream, active && !!attemptId, record);
+
+  useEffect(() => {
+    if (!active) {
+      noCameraReported.current = false;
+      return;
+    }
+    if (cameraStatus === 'denied' && !noCameraReported.current) {
+      noCameraReported.current = true;
+      record('NO_CAMERA', { via: 'getUserMedia-denied-or-ended' });
+    }
+    if (cameraStatus === 'on') noCameraReported.current = false;
+  }, [cameraStatus, active, record]);
 
   // ---- batched flush ----
   useEffect(() => {
@@ -100,111 +113,32 @@ export function useProctoring(attemptId: string | null, active: boolean) {
     };
   }, [active, record]);
 
-  // ---- camera presence + snapshots ----
+  // ---- periodic snapshots from the shared stream ----
   useEffect(() => {
-    if (!active || !attemptId) return;
-    let faceTimer: ReturnType<typeof setInterval> | null = null;
-    let snapTimer: ReturnType<typeof setInterval> | null = null;
-    let detector: any = null;
-    let cancelled = false;
-
-    (async () => {
+    if (!active || !attemptId || cameraStatus !== 'on') return;
+    const sendSnapshot = async () => {
+      const image = captureFrame();
+      if (!image) return;
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: 320, height: 240 },
-          audio: false,
-        });
-        if (cancelled) {
-          stream.getTracks().forEach((t) => t.stop());
-          return;
-        }
-        streamRef.current = stream;
-        const video = document.createElement('video');
-        video.muted = true;
-        video.playsInline = true;
-        video.srcObject = stream;
-        await video.play();
-        videoRef.current = video;
-        setCameraOn(true);
-
-        stream.getVideoTracks()[0].addEventListener('ended', () => {
-          setCameraOn(false);
-          record('NO_CAMERA', { via: 'track-ended' });
-        });
-
-        // face presence — best effort; degrades to snapshots-only when the
-        // model can't load (e.g. offline)
-        try {
-          const { FaceDetector, FilesetResolver } = await import('@mediapipe/tasks-vision');
-          const fileset = await FilesetResolver.forVisionTasks(
-            'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm'
-          );
-          detector = await FaceDetector.createFromOptions(fileset, {
-            baseOptions: {
-              modelAssetPath:
-                'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite',
-            },
-            runningMode: 'VIDEO',
-          });
-          faceTimer = setInterval(() => {
-            if (!videoRef.current || !detector) return;
-            try {
-              const result = detector.detectForVideo(videoRef.current, performance.now());
-              const faces = result?.detections?.length ?? 0;
-              if (faces === 0) {
-                faceMisses.current++;
-                if (faceMisses.current === FACE_MISSES_BEFORE_EVENT) {
-                  record('FACE_NOT_DETECTED', { consecutiveChecks: FACE_MISSES_BEFORE_EVENT });
-                  faceMisses.current = 0;
-                }
-              } else {
-                faceMisses.current = 0;
-                if (faces > 1) record('MULTIPLE_FACES', { faces });
-              }
-            } catch {
-              /* skip frame */
-            }
-          }, FACE_CHECK_EVERY_MS);
-        } catch (e) {
-          console.warn('Face detection unavailable, snapshots only:', e);
-        }
-
-        // periodic low-res snapshot
-        const canvas = document.createElement('canvas');
-        canvas.width = 320;
-        canvas.height = 240;
-        const sendSnapshot = async () => {
-          const v = videoRef.current;
-          if (!v) return;
-          canvas.getContext('2d')?.drawImage(v, 0, 0, 320, 240);
-          const image = canvas.toDataURL('image/jpeg', 0.5);
-          try {
-            await apiClient.post(`/assessments/attempts/${attemptId}/snapshot`, { image });
-          } catch {
-            /* non-fatal */
-          }
-        };
-        sendSnapshot();
-        snapTimer = setInterval(sendSnapshot, SNAPSHOT_EVERY_MS);
+        await apiClient.post(`/assessments/attempts/${attemptId}/snapshot`, { image });
       } catch {
-        setCameraOn(false);
-        record('NO_CAMERA', { via: 'getUserMedia-denied' });
+        /* non-fatal */
       }
-    })();
-
-    return () => {
-      cancelled = true;
-      if (faceTimer) clearInterval(faceTimer);
-      if (snapTimer) clearInterval(snapTimer);
-      detector?.close?.();
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-      videoRef.current = null;
-      setCameraOn(false);
     };
-  }, [active, attemptId, record]);
+    const first = setTimeout(sendSnapshot, 3000); // give the stream a moment
+    const t = setInterval(sendSnapshot, SNAPSHOT_EVERY_MS);
+    return () => {
+      clearTimeout(first);
+      clearInterval(t);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, attemptId, cameraStatus]);
 
-  return { warning, cameraOn };
+  return {
+    warning,
+    cameraOn: cameraStatus === 'on',
+    faceStatus: (cameraStatus === 'denied' ? 'unavailable' : faceStatus) as FaceStatus,
+  };
 }
 
 export async function enterFullscreen() {

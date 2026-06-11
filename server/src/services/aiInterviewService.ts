@@ -94,6 +94,13 @@ export async function reply(interviewId: string, userId: string, content: string
   const interview = await loadInterview(interviewId, userId);
   if (interview.status !== 'IN_PROGRESS') throw new Error('Interview already finished');
 
+  // out-of-turn guard: a candidate turn must follow an interviewer turn, so a
+  // duplicated/raced client submit can never corrupt the transcript
+  const lastTurn = interview.turns[interview.turns.length - 1];
+  if (lastTurn && lastTurn.role === 'CANDIDATE') {
+    throw new Error('Please wait for the next question');
+  }
+
   await prisma.aiInterviewTurn.create({
     data: {
       interviewId,
@@ -184,6 +191,27 @@ export async function finishInterview(interviewId: string, userId: string) {
   return getInterview(interviewId, userId);
 }
 
+// Face-presence event counts observed during a video interview. Stored as a
+// triage signal for the report — never a verdict.
+const PROCTORING_KEYS = new Set(['FACE_NOT_DETECTED', 'MULTIPLE_FACES', 'NO_CAMERA', 'faceChecks']);
+
+export async function recordProctoringSummary(
+  interviewId: string,
+  userId: string,
+  counts: Record<string, number>
+) {
+  const interview = await loadInterview(interviewId, userId);
+  const clean: Record<string, number> = {};
+  for (const [key, value] of Object.entries(counts || {})) {
+    if (PROCTORING_KEYS.has(key)) clean[key] = Math.max(0, Math.min(10000, Number(value) || 0));
+  }
+  await prisma.aiInterview.update({
+    where: { id: interview.id },
+    data: { proctoringSummary: clean as any },
+  });
+  return { ok: true };
+}
+
 export async function getInterview(interviewId: string, userId: string) {
   const interview = await loadInterview(interviewId, userId);
   return {
@@ -196,6 +224,7 @@ export async function getInterview(interviewId: string, userId: string) {
     overallScore: interview.overallScore,
     rubricScores: interview.rubricScores,
     summary: interview.summary ? JSON.parse(interview.summary) : null,
+    proctoringSummary: interview.proctoringSummary ?? null,
     maxQuestions: MAX_QUESTIONS,
     turns: interview.turns.map((t) => ({
       order: t.order,

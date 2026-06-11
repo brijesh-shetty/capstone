@@ -32,6 +32,7 @@ import { AssessmentRunner } from './pages/AssessmentRunner';
 import { TestBuilder } from './pages/TestBuilder';
 import { AdminReports } from './pages/AdminReports';
 import { InterviewChat } from './pages/InterviewChat';
+import { InterviewRoom } from './pages/InterviewRoom';
 
 interface User {
   id: string;
@@ -63,6 +64,8 @@ const App: React.FC = () => {
 
   const [selectedDomainSlug, setSelectedDomainSlug] = useState<string | null>(() => sessionStorage.getItem('selectedDomainSlug'));
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(() => sessionStorage.getItem('selectedAssessmentId'));
+  const [videoInterviewConfig, setVideoInterviewConfig] = useState<{ role: string; companyId: string | null } | null>(null);
+  const [completedInterviewId, setCompletedInterviewId] = useState<string | null>(null);
   const [selectedInterviewCategorySlug, setSelectedInterviewCategorySlug] = useState<string | null>(() => sessionStorage.getItem('selectedInterviewCategorySlug'));
   const [selectedInterviewTopicId, setSelectedInterviewTopicId] = useState<string | null>(() => sessionStorage.getItem('selectedInterviewTopicId'));
   const [achievementQueue, setAchievementQueue] = useState<any[]>([]);
@@ -352,7 +355,28 @@ const App: React.FC = () => {
         )}
 
         {currentPage === 'ai-interview' && auth.user && (
-          <InterviewChat onBack={() => setCurrentPage('dashboard')} />
+          <InterviewChat
+            onBack={() => { setCompletedInterviewId(null); setCurrentPage('dashboard'); }}
+            initialInterviewId={completedInterviewId}
+            onStartVideo={(role, companyId) => {
+              setCompletedInterviewId(null);
+              setVideoInterviewConfig({ role, companyId });
+              setCurrentPage('interview-room');
+            }}
+          />
+        )}
+
+        {currentPage === 'interview-room' && auth.user && videoInterviewConfig && (
+          <InterviewRoom
+            role={videoInterviewConfig.role}
+            companyId={videoInterviewConfig.companyId}
+            onExit={() => { setVideoInterviewConfig(null); setCurrentPage('ai-interview'); }}
+            onComplete={(interviewId) => {
+              setVideoInterviewConfig(null);
+              setCompletedInterviewId(interviewId);
+              setCurrentPage('ai-interview');
+            }}
+          />
         )}
 
         {currentPage === 'leaderboard' && auth.user && (
