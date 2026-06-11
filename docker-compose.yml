@@ -2,10 +2,6 @@
 # (Judge0 CE was the first choice but its isolate sandbox requires cgroup v1,
 # which modern WSL2 no longer supports; Piston runs fine on cgroup v2.)
 #
-# Runs inside WSL2 Ubuntu's Docker Engine:
-#   wsl -d Ubuntu -u root -- sh -c "cd /mnt/c/Users/arya1/OneDrive/Desktop/capstone && docker compose up -d"
-#   curl http://localhost:2000/api/v2/runtimes
-#
 # Language runtimes are installed once via scripts/setup-piston.ts.
 
 services:
@@ -21,5 +17,26 @@ services:
     tmpfs:
       - /tmp:exec
 
+  db:
+    image: postgres:15
+    container_name: learndb_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: learndb
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    container_name: learndb_redis
+    restart: always
+    ports:
+      - "6379:6379"
+
 volumes:
   piston-packages:
+  pgdata:
