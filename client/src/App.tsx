@@ -187,7 +187,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 relative">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-slate-50 to-violet-100 relative">
       {/* Achievement Toasts */}
       {achievementQueue.length > 0 && (
         <AchievementToast 
@@ -198,38 +198,47 @@ const App: React.FC = () => {
       )}
 
       {/* Navigation */}
-      <nav className="bg-white shadow-lg relative z-40">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+      <nav className="bg-white/80 backdrop-blur-md border-b border-gray-200/60 shadow-soft sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
           <button
             onClick={() => {
               setCurrentPage(auth.user ? 'dashboard' : 'home');
               setError(null);
             }}
-            className="text-2xl font-bold text-indigo-600 hover:text-indigo-700 cursor-pointer"
+            className="flex items-center gap-2 cursor-pointer group"
           >
-            🎮 LearnHub
+            <span className="text-2xl group-hover:scale-110 transition-transform">🎮</span>
+            <span className="text-2xl font-extrabold bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
+              LearnHub
+            </span>
           </button>
           <div>
             {auth.user ? (
-              <div className="flex items-center gap-4">
-                <div className="text-right">
-                  <p className="font-semibold text-gray-800">{auth.user.name}</p>
+              <div className="flex items-center gap-3">
+                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-indigo-50 border border-indigo-100 rounded-full">
+                  <span className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white text-sm font-bold flex items-center justify-center">
+                    {auth.user.name.charAt(0).toUpperCase()}
+                  </span>
+                  <span className="font-semibold text-gray-800 text-sm">{auth.user.name}</span>
+                  <span className="text-xs font-bold text-indigo-600 bg-white px-2 py-0.5 rounded-full border border-indigo-100">
+                    Lv {auth.user.level}
+                  </span>
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 font-semibold"
+                  className="px-4 py-2 text-sm font-semibold text-red-600 bg-red-50 border border-red-100 rounded-xl hover:bg-red-100 transition-colors"
                 >
                   Logout
                 </button>
               </div>
             ) : (
-              <div className="flex gap-4">
+              <div className="flex gap-3">
                 <button
                   onClick={() => {
                     setCurrentPage('login');
                     setError(null);
                   }}
-                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 font-semibold"
+                  className="btn-ghost px-4 py-2 text-sm"
                 >
                   Login
                 </button>
@@ -238,9 +247,9 @@ const App: React.FC = () => {
                     setCurrentPage('register');
                     setError(null);
                   }}
-                  className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 font-semibold"
+                  className="btn-primary px-4 py-2 text-sm"
                 >
-                  Register
+                  Sign Up Free
                 </button>
               </div>
             )}
@@ -250,32 +259,59 @@ const App: React.FC = () => {
 
       {/* Error Message */}
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 max-w-7xl mx-auto mt-4 rounded">
-          {error}
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 px-4 py-3 mt-4 rounded-xl shadow-soft animate-fade-in">
+            <span className="text-lg">⚠️</span>
+            <p className="font-medium text-sm">{error}</p>
+          </div>
         </div>
       )}
 
       {/* Page Content */}
       <div className="max-w-7xl mx-auto px-4 py-8">
         {currentPage === 'home' && !auth.user && (
-          <div className="text-center">
-            <h2 className="text-5xl font-bold text-gray-800 mb-4">Welcome to LearnHub</h2>
-            <p className="text-xl text-gray-600 mb-8">
-              🎓 Learn through gamified quizzes • 🎮 Play engaging games • 🏆 Earn XP and level up!
+          <div className="text-center py-10 animate-fade-in-up">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-6 bg-indigo-50 border border-indigo-100 rounded-full text-sm font-semibold text-indigo-700">
+              ✨ Learn smarter, play harder
+            </div>
+            <h2 className="text-5xl md:text-6xl font-extrabold text-gray-900 mb-5 leading-tight">
+              Level up your skills with{' '}
+              <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 bg-clip-text text-transparent">
+                LearnHub
+              </span>
+            </h2>
+            <p className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto">
+              Master 8 learning domains through games, ace your placements with curated
+              interview prep, and climb the leaderboard — one XP at a time.
             </p>
-            <div className="space-x-4">
+            <div className="flex justify-center gap-4 mb-16">
+              <button
+                onClick={() => setCurrentPage('register')}
+                className="btn-primary px-8 py-4 text-lg"
+              >
+                Get Started Free →
+              </button>
               <button
                 onClick={() => setCurrentPage('login')}
-                className="px-8 py-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-bold text-lg"
+                className="btn-ghost px-8 py-4 text-lg"
               >
                 Login
               </button>
-              <button
-                onClick={() => setCurrentPage('register')}
-                className="px-8 py-4 bg-green-500 text-white rounded-lg hover:bg-green-600 font-bold text-lg"
-              >
-                Sign Up
-              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto text-left">
+              {[
+                { icon: '🎮', title: '7 Game Engines', desc: 'Memory Match, Hangman, Crosswords and more — every topic becomes a game.' },
+                { icon: '🎯', title: 'Interview Prep', desc: '470+ curated aptitude questions with theory notes, formulas and solved examples.' },
+                { icon: '🏆', title: 'XP & Achievements', desc: 'Earn XP, unlock achievements, keep your streak alive and top the leaderboard.' },
+              ].map((f) => (
+                <div key={f.title} className="card card-hover p-6">
+                  <div className="w-12 h-12 flex items-center justify-center text-2xl bg-indigo-50 rounded-xl mb-4">
+                    {f.icon}
+                  </div>
+                  <h3 className="font-bold text-lg text-gray-900 mb-1">{f.title}</h3>
+                  <p className="text-sm text-gray-600 leading-relaxed">{f.desc}</p>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -566,40 +602,44 @@ const LoginPage: React.FC<{ onLogin: (email: string, password: string) => void; 
   };
 
   return (
-    <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-lg">
-      <h2 className="text-3xl font-bold mb-6 text-center">Login</h2>
+    <div className="max-w-md mx-auto card p-8 animate-fade-in-up">
+      <div className="text-center mb-6">
+        <div className="w-14 h-14 mx-auto mb-3 flex items-center justify-center text-3xl bg-indigo-50 rounded-2xl">👋</div>
+        <h2 className="text-3xl font-extrabold text-gray-900">Welcome back</h2>
+        <p className="text-sm text-gray-500 mt-1">Login to continue your learning streak</p>
+      </div>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-semibold mb-2">Email</label>
+          <label className="block text-sm font-semibold text-gray-700 mb-1.5">Email</label>
           <input
             type="email"
             placeholder="your@email.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-2 border rounded focus:outline-none focus:border-blue-500"
+            className="input"
             required
           />
         </div>
         <div>
-          <label className="block text-sm font-semibold mb-2">Password</label>
+          <label className="block text-sm font-semibold text-gray-700 mb-1.5">Password</label>
           <input
             type="password"
             placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-2 border rounded focus:outline-none focus:border-blue-500"
+            className="input"
             required
           />
         </div>
         <button
           type="submit"
           disabled={loading}
-          className="w-full px-4 py-3 bg-blue-500 text-white rounded hover:bg-blue-600 font-bold disabled:bg-gray-400"
+          className="btn-primary w-full py-3"
         >
           {loading ? 'Logging in...' : 'Login'}
         </button>
       </form>
-      <p className="text-xs text-gray-500 mt-4 text-center">Demo: student@example.com / password</p>
+      <p className="text-xs text-gray-400 mt-5 text-center">Demo: student@example.com / password</p>
     </div>
   );
 };
@@ -616,48 +656,52 @@ const RegisterPage: React.FC<{ onRegister: (name: string, email: string, passwor
   };
 
   return (
-    <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-lg">
-      <h2 className="text-3xl font-bold mb-6 text-center">Register</h2>
+    <div className="max-w-md mx-auto card p-8 animate-fade-in-up">
+      <div className="text-center mb-6">
+        <div className="w-14 h-14 mx-auto mb-3 flex items-center justify-center text-3xl bg-violet-50 rounded-2xl">🚀</div>
+        <h2 className="text-3xl font-extrabold text-gray-900">Create your account</h2>
+        <p className="text-sm text-gray-500 mt-1">Start earning XP in under a minute</p>
+      </div>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-semibold mb-2">Full Name</label>
+          <label className="block text-sm font-semibold text-gray-700 mb-1.5">Full Name</label>
           <input
             type="text"
             placeholder="John Doe"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full px-4 py-2 border rounded focus:outline-none focus:border-blue-500"
+            className="input"
             required
           />
         </div>
         <div>
-          <label className="block text-sm font-semibold mb-2">Email</label>
+          <label className="block text-sm font-semibold text-gray-700 mb-1.5">Email</label>
           <input
             type="email"
             placeholder="your@email.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-2 border rounded focus:outline-none focus:border-blue-500"
+            className="input"
             required
           />
         </div>
         <div>
-          <label className="block text-sm font-semibold mb-2">Password</label>
+          <label className="block text-sm font-semibold text-gray-700 mb-1.5">Password</label>
           <input
             type="password"
             placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-2 border rounded focus:outline-none focus:border-blue-500"
+            className="input"
             required
           />
         </div>
         <div>
-          <label className="block text-sm font-semibold mb-2">User Type</label>
+          <label className="block text-sm font-semibold text-gray-700 mb-1.5">User Type</label>
           <select
             value={role}
             onChange={(e) => setRole(e.target.value)}
-            className="w-full px-4 py-2 border rounded focus:outline-none focus:border-blue-500"
+            className="input"
           >
             <option value="STUDENT">Student</option>
             <option value="COLLEGE_STUDENT">College Student</option>
@@ -667,9 +711,9 @@ const RegisterPage: React.FC<{ onRegister: (name: string, email: string, passwor
         <button
           type="submit"
           disabled={loading}
-          className="w-full px-4 py-3 bg-green-500 text-white rounded hover:bg-green-600 font-bold disabled:bg-gray-400"
+          className="btn-primary w-full py-3"
         >
-          {loading ? 'Creating account...' : 'Register'}
+          {loading ? 'Creating account...' : 'Create Account'}
         </button>
       </form>
     </div>

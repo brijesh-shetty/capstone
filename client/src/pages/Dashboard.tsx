@@ -36,8 +36,64 @@ const LEVEL_NAMES = [
   'Grandmaster'
 ];
 
+const QUICK_ACTIONS = [
+  {
+    page: 'domains',
+    icon: '🚀',
+    title: 'Learning Domains',
+    desc: 'Explore 8 domains and 35 topics through games',
+    accent: 'from-blue-500 to-indigo-600',
+    tint: 'bg-blue-50 text-blue-600 group-hover:bg-blue-100',
+  },
+  {
+    page: 'interview-hub',
+    icon: '🎯',
+    title: 'Interview Prep',
+    desc: 'Aptitude, reasoning & verbal question banks',
+    accent: 'from-emerald-500 to-teal-600',
+    tint: 'bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100',
+  },
+  {
+    page: 'assessments',
+    icon: '📝',
+    title: 'Mock Tests',
+    desc: 'Timed, proctored assessments with analysis',
+    accent: 'from-rose-500 to-red-600',
+    tint: 'bg-rose-50 text-rose-600 group-hover:bg-rose-100',
+  },
+  {
+    page: 'ai-interview',
+    icon: '🤖',
+    title: 'AI Interview',
+    desc: 'Live voice interview with an AI interviewer',
+    accent: 'from-violet-500 to-fuchsia-600',
+    tint: 'bg-violet-50 text-violet-600 group-hover:bg-violet-100',
+  },
+  {
+    page: 'leaderboard',
+    icon: '📊',
+    title: 'Leaderboard',
+    desc: 'See where you rank among all learners',
+    accent: 'from-purple-500 to-pink-600',
+    tint: 'bg-purple-50 text-purple-600 group-hover:bg-purple-100',
+  },
+  {
+    page: 'achievements',
+    icon: '🏆',
+    title: 'Trophy Room',
+    desc: 'Browse every achievement you have unlocked',
+    accent: 'from-amber-400 to-orange-500',
+    tint: 'bg-amber-50 text-amber-600 group-hover:bg-amber-100',
+  },
+];
+
+const ADMIN_ACTIONS = [
+  { page: 'review-queue', icon: '🔍', title: 'Question Review Queue', desc: 'Approve or reject flagged questions' },
+  { page: 'test-builder', icon: '🛠️', title: 'Test Builder', desc: 'Compose and publish mock tests' },
+  { page: 'admin-reports', icon: '📈', title: 'Attempt Reports', desc: 'Review student attempts and proctoring' },
+];
+
 export const DashboardPage: React.FC<DashboardPageProps> = ({ user, setCurrentPage }) => {
-  const [userStats, setUserStats] = useState(user);
   const [stats, setStats] = useState({
     gamesPlayed: 0,
     totalXp: user.xpTotal,
@@ -70,133 +126,153 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ user, setCurrentPa
 
   const xpProgress = ((stats.totalXp - stats.currentLevelXp) / (stats.nextLevelXp - stats.currentLevelXp)) * 100;
   const levelName = LEVEL_NAMES[stats.currentLevel - 1] || 'Unknown';
+  const xpIntoLevel = stats.totalXp - stats.currentLevelXp;
+  const xpForLevel = stats.nextLevelXp - stats.currentLevelXp;
 
   return (
-    <div className="max-w-6xl mx-auto">
-      {/* Welcome Section */}
-      <div className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white p-8 rounded-lg shadow-lg mb-6">
-        <h2 className="text-3xl font-bold mb-2">Welcome, {user.name}! 👋</h2>
-        <p className="text-blue-100">Keep learning and climbing the leaderboard!</p>
+    <div className="max-w-6xl mx-auto animate-fade-in-up">
+      {/* Welcome Hero */}
+      <div className="relative overflow-hidden bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 text-white p-8 md:p-10 rounded-3xl shadow-lift mb-6">
+        <div className="absolute -top-16 -right-16 w-64 h-64 bg-white/10 rounded-full blur-2xl" />
+        <div className="absolute -bottom-20 right-32 w-48 h-48 bg-fuchsia-400/20 rounded-full blur-2xl" />
+        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div>
+            <p className="text-indigo-200 font-medium mb-1">Good to see you again</p>
+            <h2 className="text-3xl md:text-4xl font-extrabold mb-3">Welcome, {user.name}! 👋</h2>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="px-3 py-1 bg-white/15 backdrop-blur-sm rounded-full text-sm font-semibold border border-white/20">
+                ⭐ Level {stats.currentLevel} · {levelName}
+              </span>
+              <span className="px-3 py-1 bg-white/15 backdrop-blur-sm rounded-full text-sm font-semibold border border-white/20">
+                🔥 {user.streakDays}-day streak
+              </span>
+            </div>
+          </div>
+          <div className="text-center md:text-right">
+            <p className="text-5xl font-extrabold">{stats.totalXp.toLocaleString()}</p>
+            <p className="text-indigo-200 font-medium">Total XP earned</p>
+          </div>
+        </div>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        {/* Level Card */}
-        <div className="bg-white p-6 rounded-lg shadow-lg">
-          <div className="text-center">
-            <p className="text-gray-600 text-sm mb-2">Current Level</p>
-            <p className="text-5xl font-bold text-indigo-600 mb-2">{stats.currentLevel}</p>
-            <p className="text-lg text-gray-700 font-semibold">{levelName}</p>
-          </div>
-        </div>
-
-        {/* XP Card */}
-        <div className="bg-white p-6 rounded-lg shadow-lg">
-          <div className="text-center">
-            <p className="text-gray-600 text-sm mb-2">Total XP</p>
-            <p className="text-4xl font-bold text-green-600 mb-2">{stats.totalXp}</p>
-            <p className="text-xs text-gray-500">
-              {stats.totalXp - stats.currentLevelXp} / {stats.nextLevelXp - stats.currentLevelXp}
+        <div className="card card-hover p-6 flex items-center gap-4">
+          <div className="w-14 h-14 flex items-center justify-center text-2xl bg-indigo-50 rounded-2xl">⭐</div>
+          <div>
+            <p className="text-sm text-gray-500 font-medium">Current Level</p>
+            <p className="text-3xl font-extrabold text-gray-900">
+              {stats.currentLevel} <span className="text-base font-semibold text-indigo-600">{levelName}</span>
             </p>
           </div>
         </div>
 
-        {/* Streak Card */}
-        <div className="bg-white p-6 rounded-lg shadow-lg">
-          <div className="text-center">
-            <p className="text-gray-600 text-sm mb-2">Daily Streak</p>
-            <p className="text-5xl font-bold text-orange-600 mb-2">{user.streakDays}</p>
-            <p className="text-sm text-gray-700">🔥 days</p>
+        <div className="card card-hover p-6 flex items-center gap-4">
+          <div className="w-14 h-14 flex items-center justify-center text-2xl bg-emerald-50 rounded-2xl">⚡</div>
+          <div>
+            <p className="text-sm text-gray-500 font-medium">Total XP</p>
+            <p className="text-3xl font-extrabold text-gray-900">{stats.totalXp.toLocaleString()}</p>
+            <p className="text-xs text-gray-400">{xpIntoLevel} / {xpForLevel} this level</p>
+          </div>
+        </div>
+
+        <div className="card card-hover p-6 flex items-center gap-4">
+          <div className="w-14 h-14 flex items-center justify-center text-2xl bg-orange-50 rounded-2xl">🔥</div>
+          <div>
+            <p className="text-sm text-gray-500 font-medium">Daily Streak</p>
+            <p className="text-3xl font-extrabold text-gray-900">
+              {user.streakDays} <span className="text-base font-semibold text-orange-500">days</span>
+            </p>
           </div>
         </div>
       </div>
 
       {/* XP Progress Bar */}
-      <div className="bg-white p-6 rounded-lg shadow-lg mb-6">
-        <h3 className="font-bold text-lg mb-3">Progress to Next Level</h3>
-        <div className="w-full bg-gray-200 rounded-full h-4 mb-2">
+      <div className="card p-6 mb-8">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-bold text-lg text-gray-900">Progress to Level {stats.currentLevel + 1}</h3>
+          <span className="text-sm font-bold text-indigo-600">{Math.min(Math.round(xpProgress), 100)}%</span>
+        </div>
+        <div className="w-full bg-gray-100 rounded-full h-3.5 mb-2 overflow-hidden">
           <div
-            className="bg-gradient-to-r from-green-400 to-blue-500 h-4 rounded-full transition-all"
+            className="bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 h-3.5 rounded-full animate-progress-grow transition-all"
             style={{ width: `${Math.min(xpProgress, 100)}%` }}
           ></div>
         </div>
-        <p className="text-sm text-gray-600">
-          {stats.totalXp - stats.currentLevelXp} / {stats.nextLevelXp - stats.currentLevelXp} XP
+        <p className="text-sm text-gray-500">
+          {xpIntoLevel} / {xpForLevel} XP — {Math.max(xpForLevel - xpIntoLevel, 0)} XP to go
         </p>
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <button
-          onClick={() => setCurrentPage('domains')}
-          className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-black text-xl py-6 px-6 rounded-xl shadow-lg transition transform hover:-translate-y-1"
-        >
-          🚀 Learning Domains
-        </button>
-        <button
-          onClick={() => setCurrentPage('interview-hub')}
-          className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-black text-xl py-6 px-6 rounded-xl shadow-lg transition transform hover:-translate-y-1"
-        >
-          🎯 Interview Prep
-        </button>
-        <button
-          onClick={() => setCurrentPage('assessments')}
-          className="bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white font-black text-xl py-6 px-6 rounded-xl shadow-lg transition transform hover:-translate-y-1"
-        >
-          📝 Mock Tests
-        </button>
-        <button
-          onClick={() => setCurrentPage('leaderboard')}
-          className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-black text-xl py-6 px-6 rounded-xl shadow-lg transition transform hover:-translate-y-1"
-        >
-          📊 Leaderboard
-        </button>
-        <button
-          onClick={() => setCurrentPage('achievements')}
-          className="bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white font-black text-xl py-6 px-6 rounded-xl shadow-lg transition transform hover:-translate-y-1"
-        >
-          🏆 Trophy Room
-        </button>
-        <button
-          onClick={() => setCurrentPage('ai-interview')}
-          className="bg-gradient-to-r from-violet-500 to-fuchsia-600 hover:from-violet-600 hover:to-fuchsia-700 text-white font-black text-xl py-6 px-6 rounded-xl shadow-lg transition transform hover:-translate-y-1"
-        >
-          🤖 AI Interview
-        </button>
+      <h3 className="font-extrabold text-xl text-gray-900 mb-4">Jump back in</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+        {QUICK_ACTIONS.map((action) => (
+          <button
+            key={action.page}
+            onClick={() => setCurrentPage(action.page)}
+            className="card card-hover group relative overflow-hidden p-6 text-left"
+          >
+            <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${action.accent}`} />
+            <div className="flex items-start gap-4">
+              <div className={`w-12 h-12 shrink-0 flex items-center justify-center text-2xl rounded-xl transition-colors ${action.tint}`}>
+                {action.icon}
+              </div>
+              <div className="flex-1">
+                <p className="font-bold text-gray-900 group-hover:text-indigo-700 transition-colors">
+                  {action.title}
+                </p>
+                <p className="text-sm text-gray-500 mt-0.5 leading-snug">{action.desc}</p>
+              </div>
+              <span className="text-gray-300 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all font-bold">
+                →
+              </span>
+            </div>
+          </button>
+        ))}
       </div>
 
       {(user.role === 'ADMIN' || user.role === 'EDUCATOR') && (
-        <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button
-            onClick={() => setCurrentPage('review-queue')}
-            className="bg-gradient-to-r from-slate-600 to-slate-800 hover:from-slate-700 hover:to-slate-900 text-white font-black text-xl py-4 px-6 rounded-xl shadow-lg transition transform hover:-translate-y-1"
-          >
-            🔍 Question Review Queue (Admin)
-          </button>
-          <button
-            onClick={() => setCurrentPage('test-builder')}
-            className="bg-gradient-to-r from-cyan-600 to-blue-700 hover:from-cyan-700 hover:to-blue-800 text-white font-black text-xl py-4 px-6 rounded-xl shadow-lg transition transform hover:-translate-y-1"
-          >
-            🛠 Test Builder (Admin)
-          </button>
-          <button
-            onClick={() => setCurrentPage('admin-reports')}
-            className="bg-gradient-to-r from-fuchsia-600 to-purple-700 hover:from-fuchsia-700 hover:to-purple-800 text-white font-black text-xl py-4 px-6 rounded-xl shadow-lg transition transform hover:-translate-y-1"
-          >
-            📊 Attempt Reports (Admin)
-          </button>
-        </div>
+        <>
+          <h3 className="font-extrabold text-xl text-gray-900 mb-4">Educator Tools</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            {ADMIN_ACTIONS.map((action) => (
+              <button
+                key={action.page}
+                onClick={() => setCurrentPage(action.page)}
+                className="card card-hover group p-5 text-left border-dashed"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 shrink-0 flex items-center justify-center text-xl bg-slate-100 rounded-xl group-hover:bg-slate-200 transition-colors">
+                    {action.icon}
+                  </div>
+                  <div>
+                    <p className="font-bold text-gray-900">{action.title}</p>
+                    <p className="text-xs text-gray-500">{action.desc}</p>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </>
       )}
 
       {/* Recent Achievements */}
-      <div className="bg-white p-6 rounded-lg shadow-lg">
-        <h3 className="font-bold text-xl mb-4">✨ Recent Achievements</h3>
+      <div className="card p-6">
+        <h3 className="font-extrabold text-xl text-gray-900 mb-4">✨ Recent Achievements</h3>
         {recentAchievements.length === 0 ? (
-          <p className="text-gray-500 italic">No achievements yet. Start playing to earn some!</p>
+          <div className="text-center py-8">
+            <div className="text-4xl mb-3">🎯</div>
+            <p className="text-gray-500 font-medium">No achievements yet</p>
+            <p className="text-sm text-gray-400">Start playing to earn your first one!</p>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {recentAchievements.map((a) => (
-              <div key={a.id} className="flex items-center p-4 bg-yellow-50 border border-yellow-100 rounded-xl">
+              <div
+                key={a.id}
+                className="flex items-center p-4 bg-gradient-to-br from-amber-50 to-yellow-50 border border-amber-100 rounded-2xl card-hover"
+              >
                 <span className="text-3xl mr-4">{a.icon}</span>
                 <div className="flex-1">
                   <p className="font-bold text-gray-900">{a.name}</p>

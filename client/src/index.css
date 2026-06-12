@@ -1,3 +1,72 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply font-sans antialiased text-gray-800;
+  }
+
+  ::selection {
+    @apply bg-indigo-500/20 text-indigo-900;
+  }
+}
+
+@layer components {
+  /* Shared surface style for content cards */
+  .card {
+    @apply bg-white rounded-2xl border border-gray-100 shadow-soft;
+  }
+
+  .card-hover {
+    @apply transition-all duration-200 hover:shadow-lift hover:-translate-y-0.5;
+  }
+
+  /* Standard text input */
+  .input {
+    @apply w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl
+           text-gray-800 placeholder-gray-400 transition
+           focus:outline-none focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10;
+  }
+
+  /* Primary gradient button */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-white
+           bg-gradient-to-r from-indigo-600 to-violet-600
+           shadow-md shadow-indigo-500/25 transition-all duration-200
+           hover:shadow-lg hover:shadow-indigo-500/35 hover:-translate-y-0.5
+           active:translate-y-0 disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  /* Secondary / ghost button */
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-semibold
+           text-gray-700 bg-white border border-gray-200 shadow-sm transition-all duration-200
+           hover:border-gray-300 hover:bg-gray-50 hover:-translate-y-0.5 active:translate-y-0;
+  }
+}
+
+/* Slim, theme-matched scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #c7d2fe;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a5b4fc;
+  background-clip: content-box;
+}
