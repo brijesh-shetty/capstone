@@ -17,17 +17,19 @@ interface AvailableTest {
 interface CompanyCard {
   id: string;
   name: string;
+  slug: string;
   rounds: { title: string; count: number }[];
+  tracks: string[];
   durationMinutes: number;
 }
 
 export const AssessmentList: React.FC<{
   onStart: (testId: string) => void;
+  onOpenCompany: (slug: string) => void;
   onBack: () => void;
-}> = ({ onStart, onBack }) => {
+}> = ({ onStart, onOpenCompany, onBack }) => {
   const [tests, setTests] = useState<AvailableTest[]>([]);
   const [companies, setCompanies] = useState<CompanyCard[]>([]);
-  const [building, setBuilding] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,18 +41,6 @@ export const AssessmentList: React.FC<{
       .finally(() => setLoading(false));
     apiClient.get<CompanyCard[]>('/companies').then(setCompanies).catch(() => {});
   }, []);
-
-  const startCompanyTest = async (companyId: string) => {
-    setBuilding(companyId);
-    try {
-      const { testId } = await apiClient.post<{ testId: string }>(`/companies/${companyId}/practice-test`, {});
-      onStart(testId);
-    } catch {
-      setError('Could not build the company test.');
-    } finally {
-      setBuilding(null);
-    }
-  };
 
   return (
     <div>
@@ -64,26 +54,29 @@ export const AssessmentList: React.FC<{
 
       {companies.length > 0 && (
         <div className="mb-8">
-          <h2 className="font-black text-lg mb-3">🏢 Practice for a company</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <h2 className="font-black text-lg mb-3">🏢 Prepare for a company</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {companies.map((c) => (
-              <div key={c.id} className="bg-gradient-to-br from-slate-800 to-slate-900 text-white p-5 rounded-xl shadow-lg">
-                <h3 className="font-black text-lg mb-1">{c.name}</h3>
+              <button
+                key={c.id}
+                onClick={() => onOpenCompany(c.slug)}
+                className="text-left bg-gradient-to-br from-slate-800 to-slate-900 text-white p-5 rounded-xl shadow-lg hover:-translate-y-0.5 transition"
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="font-black text-lg">{c.name}</h3>
+                  {c.tracks.length > 0 && (
+                    <span className="text-[10px] bg-indigo-600 px-2 py-0.5 rounded-full font-bold">
+                      {c.tracks.length} tracks
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-slate-300 mb-3">
                   {c.rounds.map((r) => `${r.title} (${r.count})`).join(' · ')} · {c.durationMinutes} min
                 </p>
-                <button
-                  onClick={() => startCompanyTest(c.id)}
-                  disabled={building === c.id}
-                  className="w-full py-2 rounded-lg font-black bg-white text-slate-900 text-sm disabled:opacity-50"
-                >
-                  {building === c.id ? 'Building…' : `🎯 Take the ${c.name} pattern mock (proctored)`}
-                </button>
-                <p className="text-[10px] text-slate-400 mt-2">
-                  Built from a pattern profile (round structure + difficulty) using our own question bank.
-                  For a {c.name}-styled interview, use 🤖 AI Interview and pick the company.
-                </p>
-              </div>
+                <span className="inline-block w-full text-center py-2 rounded-lg font-black bg-white text-slate-900 text-sm">
+                  📊 Open prep &amp; readiness →
+                </span>
+              </button>
             ))}
           </div>
         </div>

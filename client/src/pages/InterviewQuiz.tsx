@@ -1,5 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../services/api';
+import { useQuizIntegrity } from '../hooks/useQuizIntegrity';
+
+type IntegritySignal = 'CLEAN' | 'LOW' | 'MEDIUM' | 'HIGH';
+
+interface IntegrityResult {
+  counts: { TAB_BLUR: number; COPY: number; PASTE: number; CONTEXT_MENU: number };
+  hiddenMs: number;
+  signal: IntegritySignal;
+  score: number;
+}
+
+const SIGNAL_STYLES: Record<IntegritySignal, { label: string; cls: string }> = {
+  CLEAN: { label: 'Clean session', cls: 'bg-green-50 border-green-200 text-green-800' },
+  LOW: { label: 'Low activity', cls: 'bg-yellow-50 border-yellow-200 text-yellow-800' },
+  MEDIUM: { label: 'Some activity', cls: 'bg-orange-50 border-orange-200 text-orange-800' },
+  HIGH: { label: 'High activity', cls: 'bg-red-50 border-red-200 text-red-800' },
+};
 
 interface Question {
   id: string;
@@ -26,6 +43,7 @@ interface QuizSubmissionResponse {
   percentage: number;
   xpEarned: number;
   results: QuizResult[];
+  integrity: IntegrityResult | null;
 }
 
 interface Props {
@@ -50,6 +68,11 @@ export const InterviewQuiz: React.FC<Props> = ({ topicId, topicName, onComplete,
   const [submission, setSubmission] = useState<QuizSubmissionResponse | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Lightweight, transparent integrity monitor — active only while taking the quiz.
+  const integrityActive = !loading && !submission && !error && questions.length > 0;
+  const { warning: integrityWarning, getPayload: getIntegrityPayload, totalEvents } =
+    useQuizIntegrity(integrityActive);
 
   useEffect(() => {
     const fetchQuestions = async () => {
@@ -118,7 +141,8 @@ export const InterviewQuiz: React.FC<Props> = ({ topicId, topicName, onComplete,
 
       const result = await apiClient.post<QuizSubmissionResponse>('/interview/submit', {
         topicId,
-        answers: answersArray
+        answers: answersArray,
+        integrity: getIntegrityPayload()
       });
 
       setSubmission(result);
@@ -165,6 +189,31 @@ export const InterviewQuiz: React.FC<Props> = ({ topicId, topicName, onComplete,
               <p className="text-3xl font-black text-green-900">+{submission.xpEarned}</p>
             </div>
           </div>
+
+          {submission.integrity && (
+            <div className={`max-w-md mx-auto mb-8 rounded-lg border p-4 text-left ${SIGNAL_STYLES[submission.integrity.signal].cls}`}>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-bold">🛡️ Focus & integrity</p>
+                <span className="text-xs font-bold uppercase tracking-wide">
+                  {SIGNAL_STYLES[submission.integrity.signal].label}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                <span>Tab switches: <b>{submission.integrity.counts.TAB_BLUR}</b></span>
+                <span>Pastes: <b>{submission.integrity.counts.PASTE}</b></span>
+                <span>Copies: <b>{submission.integrity.counts.COPY}</b></span>
+                <span>Right-clicks: <b>{submission.integrity.counts.CONTEXT_MENU}</b></span>
+                {submission.integrity.hiddenMs > 1000 && (
+                  <span className="col-span-2">
+                    Time off-tab: <b>{Math.round(submission.integrity.hiddenMs / 1000)}s</b>
+                  </span>
+                )}
+              </div>
+              <p className="mt-2 text-[11px] opacity-70">
+                This is an advisory signal, not a verdict — it never changes your score or XP.
+              </p>
+            </div>
+          )}
 
           <div className="flex justify-center gap-4">
             <button onClick={onReviewTheory} className="px-6 py-3 bg-gray-200 text-gray-800 rounded-lg font-bold hover:bg-gray-300">
@@ -252,9 +301,25 @@ export const InterviewQuiz: React.FC<Props> = ({ topicId, topicName, onComplete,
 
   return (
     <div className="max-w-3xl mx-auto">
+      {integrityWarning && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <span className="text-base">⚠️</span>
+          <span>{integrityWarning}</span>
+        </div>
+      )}
+
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-800">{topicName}</h2>
-        <span className="text-gray-500 font-semibold">Question {currentIndex + 1} of {questions.length}</span>
+        <div className="flex items-center gap-3">
+          <span
+            className="flex items-center gap-1.5 text-xs font-medium text-gray-400"
+            title="This practice quiz notes tab switches, copying and pasting. It's advisory only and never changes your score."
+          >
+            <span className={`h-2 w-2 rounded-full ${totalEvents > 0 ? 'bg-amber-400' : 'bg-green-400'}`}></span>
+            Focus monitor{totalEvents > 0 ? ` · ${totalEvents}` : ''}
+          </span>
+          <span className="text-gray-500 font-semibold">Question {currentIndex + 1} of {questions.length}</span>
+        </div>
       </div>
 
       <div className="w-full bg-gray-200 rounded-full h-2.5 mb-8">

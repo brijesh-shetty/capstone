@@ -287,6 +287,7 @@ model UserInterviewProgress {
   avgScore    Float    @default(0)
   totalXp     Int      @default(0)
   lastPlayedAt DateTime?
+  lastIntegrity Json?   // last practice session's integrity summary { counts, signal } — non-punitive
 
   @@unique([userId, topicId])
 }

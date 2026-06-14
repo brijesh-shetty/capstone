@@ -13,6 +13,12 @@
       "runtimeArgs": ["--prefix", "client", "run", "dev"],
       "port": 5173,
       "autoPort": true
+    },
+    {
+      "name": "totalsec",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["C:\\Users\\arya1\\OneDrive\\Desktop\\totalsec\\server.js", "--audit"],
+      "port": 7700
     }
   ]
 }

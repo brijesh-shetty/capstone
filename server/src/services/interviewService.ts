@@ -6,6 +6,64 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
+// ===== Practice-quiz integrity (lightweight, non-punitive) =====
+// The proctored AssessmentRunner has the heavyweight path (camera, snapshots,
+// per-attempt ProctoringEvent rows). Practice quizzes are low-stakes, so we only
+// accept a small client-reported summary of focus/clipboard activity, validate it
+// server-side, and turn it into an advisory signal. It never changes score or XP.
+
+export type IntegrityEventType =
+  | 'TAB_BLUR' | 'COPY' | 'PASTE' | 'CONTEXT_MENU';
+
+export interface IntegrityInput {
+  counts?: Partial<Record<IntegrityEventType, number>>;
+  // seconds the tab was hidden in total (client-measured, advisory only)
+  hiddenMs?: number;
+}
+
+export interface IntegritySummary {
+  counts: Record<IntegrityEventType, number>;
+  hiddenMs: number;
+  // weighted advisory signal — a signal, NOT a verdict of cheating
+  signal: 'CLEAN' | 'LOW' | 'MEDIUM' | 'HIGH';
+  score: number;
+}
+
+const INTEGRITY_WEIGHTS: Record<IntegrityEventType, number> = {
+  TAB_BLUR: 3,      // leaving the quiz tab
+  PASTE: 4,         // pasting an answer in
+  COPY: 1,          // copying the question out
+  CONTEXT_MENU: 1,  // right-click (often precedes copy)
+};
+
+const MAX_PER_TYPE = 100; // clamp client-reported counts to a sane ceiling
+
+// Validate + clamp the client payload, then derive an advisory signal.
+export function summarizeIntegrity(input?: IntegrityInput): IntegritySummary | null {
+  if (!input || typeof input !== 'object') return null;
+  const counts: Record<IntegrityEventType, number> = {
+    TAB_BLUR: 0, COPY: 0, PASTE: 0, CONTEXT_MENU: 0,
+  };
+  let raw = input.counts ?? {};
+  let score = 0;
+  for (const key of Object.keys(counts) as IntegrityEventType[]) {
+    const n = Number(raw[key]);
+    const clamped = Number.isFinite(n) ? Math.min(MAX_PER_TYPE, Math.max(0, Math.floor(n))) : 0;
+    counts[key] = clamped;
+    score += clamped * INTEGRITY_WEIGHTS[key];
+  }
+  const hiddenMs = Math.min(60 * 60 * 1000, Math.max(0, Math.floor(Number(input.hiddenMs) || 0)));
+  // extended time away from the tab adds to the signal (1 point per 10s, capped)
+  score += Math.min(20, Math.floor(hiddenMs / 10_000));
+
+  let signal: IntegritySummary['signal'] = 'CLEAN';
+  if (score >= 20) signal = 'HIGH';
+  else if (score >= 8) signal = 'MEDIUM';
+  else if (score >= 1) signal = 'LOW';
+
+  return { counts, hiddenMs, signal, score };
+}
+
 
 export const getInterviewCategories = async (userId: string) => {
   const categories = await prisma.interviewCategory.findMany({
@@ -123,8 +181,10 @@ export const getTopicTheory = async (topicId: string) => {
 export const submitInterviewQuiz = async (
   userId: string,
   topicId: string,
-  answers: { questionId: string; chosenIndex: number; hintUsed?: boolean }[]
+  answers: { questionId: string; chosenIndex: number; hintUsed?: boolean }[],
+  integrityInput?: IntegrityInput
 ) => {
+  const integrity = summarizeIntegrity(integrityInput);
   let score = 0;
   let totalHintsUsed = 0;
   const results = [];
@@ -183,6 +243,7 @@ export const submitInterviewQuiz = async (
         avgScore: newAvgScore,
         totalXp: existingProgress.totalXp + xpEarned,
         lastPlayedAt: new Date(),
+        lastIntegrity: (integrity ?? undefined) as any,
       },
     });
   } else {
@@ -195,6 +256,7 @@ export const submitInterviewQuiz = async (
         avgScore: percentage,
         totalXp: xpEarned,
         lastPlayedAt: new Date(),
+        lastIntegrity: (integrity ?? undefined) as any,
       },
     });
   }
@@ -205,6 +267,7 @@ export const submitInterviewQuiz = async (
     percentage,
     xpEarned,
     results,
+    integrity,
   };
 };
 

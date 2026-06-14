@@ -28,6 +28,7 @@ import { AchievementToast } from './components/AchievementToast';
 import { LeaderboardPage } from './pages/Leaderboard';
 import { ReviewQueue } from './pages/ReviewQueue';
 import { AssessmentList } from './pages/AssessmentList';
+import { CompanyPrep } from './pages/CompanyPrep';
 import { AssessmentRunner } from './pages/AssessmentRunner';
 import { TestBuilder } from './pages/TestBuilder';
 import { AdminReports } from './pages/AdminReports';
@@ -64,6 +65,7 @@ const App: React.FC = () => {
 
   const [selectedDomainSlug, setSelectedDomainSlug] = useState<string | null>(() => sessionStorage.getItem('selectedDomainSlug'));
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(() => sessionStorage.getItem('selectedAssessmentId'));
+  const [selectedCompanySlug, setSelectedCompanySlug] = useState<string | null>(() => sessionStorage.getItem('selectedCompanySlug'));
   const [videoInterviewConfig, setVideoInterviewConfig] = useState<{ role: string; companyId: string | null } | null>(null);
   const [completedInterviewId, setCompletedInterviewId] = useState<string | null>(null);
   const [selectedInterviewCategorySlug, setSelectedInterviewCategorySlug] = useState<string | null>(() => sessionStorage.getItem('selectedInterviewCategorySlug'));
@@ -83,6 +85,7 @@ const App: React.FC = () => {
     if (selectedGameType) sessionStorage.setItem('selectedGameType', selectedGameType); else sessionStorage.removeItem('selectedGameType');
     if (selectedDomainSlug) sessionStorage.setItem('selectedDomainSlug', selectedDomainSlug); else sessionStorage.removeItem('selectedDomainSlug');
     if (selectedAssessmentId) sessionStorage.setItem('selectedAssessmentId', selectedAssessmentId); else sessionStorage.removeItem('selectedAssessmentId');
+    if (selectedCompanySlug) sessionStorage.setItem('selectedCompanySlug', selectedCompanySlug); else sessionStorage.removeItem('selectedCompanySlug');
     if (selectedInterviewCategorySlug) sessionStorage.setItem('selectedInterviewCategorySlug', selectedInterviewCategorySlug); else sessionStorage.removeItem('selectedInterviewCategorySlug');
     if (selectedInterviewTopicId) sessionStorage.setItem('selectedInterviewTopicId', selectedInterviewTopicId); else sessionStorage.removeItem('selectedInterviewTopicId');
   }, [currentPage, selectedTopicId, selectedTopicName, selectedGameType, selectedDomainSlug, selectedInterviewCategorySlug, selectedInterviewTopicId]);
@@ -372,7 +375,21 @@ const App: React.FC = () => {
         {currentPage === 'assessments' && auth.user && (
           <AssessmentList
             onStart={(testId) => { setSelectedAssessmentId(testId); setCurrentPage('assessment-runner'); }}
+            onOpenCompany={(slug) => { setSelectedCompanySlug(slug); setCurrentPage('company-prep'); }}
             onBack={() => setCurrentPage('dashboard')}
+          />
+        )}
+
+        {currentPage === 'company-prep' && auth.user && selectedCompanySlug && (
+          <CompanyPrep
+            slug={selectedCompanySlug}
+            onBack={() => setCurrentPage('assessments')}
+            onStartTest={(testId) => { setSelectedAssessmentId(testId); setCurrentPage('assessment-runner'); }}
+            onStartInterview={(role, companyId) => {
+              setCompletedInterviewId(null);
+              setVideoInterviewConfig({ role, companyId });
+              setCurrentPage('interview-room');
+            }}
           />
         )}
 

@@ -58,13 +58,13 @@ router.get('/topics/:topicId/theory', async (req, res) => {
 
 router.post('/submit', async (req: AuthRequest, res) => {
   try {
-    const { topicId, answers } = req.body;
-    
+    const { topicId, answers, integrity } = req.body;
+
     if (!topicId || !Array.isArray(answers)) {
       return res.status(400).json({ error: 'Invalid payload: topicId and answers array are required' });
     }
 
-    const result = await interviewService.submitInterviewQuiz(req.userId!, topicId, answers);
+    const result = await interviewService.submitInterviewQuiz(req.userId!, topicId, answers, integrity);
     res.json(result);
   } catch (error) {
     console.error('Error submitting quiz:', error);

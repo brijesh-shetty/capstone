@@ -8,8 +8,27 @@ import {
   listInterviews,
   recordProctoringSummary,
 } from '../services/aiInterviewService';
+import { synthesizeSpeech } from '../services/ttsService';
 
 const router = Router();
+
+// POST /ai-interview/tts { text, voice? } -> audio/mpeg
+// Free neural voice for the interviewer (Microsoft Edge Read-Aloud, no API key).
+// The client plays this through a Web Audio AnalyserNode for real lip-sync, and
+// falls back to the browser's speechSynthesis voice if this errors.
+router.post('/tts', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const text = (req.body?.text ?? '').toString().trim().slice(0, 1500);
+    if (!text) return res.status(400).json({ error: 'text required' });
+    const audio = await synthesizeSpeech(text, req.body?.voice);
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Cache-Control', 'no-store');
+    return res.send(audio);
+  } catch (error: any) {
+    console.error('TTS error:', error?.message || error);
+    return res.status(502).json({ error: 'TTS unavailable' });
+  }
+});
 
 // GET /ai-interview — my past interviews
 router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
