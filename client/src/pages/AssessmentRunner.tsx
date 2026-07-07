@@ -3,6 +3,7 @@ import Editor from '@monaco-editor/react';
 import { apiClient } from '../services/api';
 import { useProctoring, enterFullscreen } from '../hooks/useProctoring';
 import { SelfViewCamera } from '../components/SelfViewCamera';
+import RichText from '../components/RichText';
 
 // Student test runner: consent screen → sectioned navigator + server-synced
 // countdown + debounced autosave → review grid → submit → scorecard.
@@ -385,7 +386,7 @@ export const AssessmentRunner: React.FC<{
               <div className="text-xs font-bold text-indigo-500 mb-1">
                 {i.topic} · {i.sectionTitle}{i.timeSpentSec > 0 ? ` · ${i.timeSpentSec}s` : ''}
               </div>
-              <p className="font-semibold whitespace-pre-wrap mb-3">{i.stem}</p>
+              <p className="font-semibold mb-3"><RichText text={i.stem} /></p>
               <div className="space-y-1">
                 {(i.options || []).map((o: any) => (
                   <div
@@ -394,7 +395,7 @@ export const AssessmentRunner: React.FC<{
                       o.isCorrect ? 'bg-emerald-100 font-bold' : chosenIds.includes(o.id) ? 'bg-red-100' : 'bg-gray-50'
                     }`}
                   >
-                    {o.text}
+                    <RichText text={o.text} />
                     {o.isCorrect && ' ✓'}
                     {!o.isCorrect && chosenIds.includes(o.id) && ' ✗ (your answer)'}
                   </div>
@@ -406,7 +407,7 @@ export const AssessmentRunner: React.FC<{
               {i.explanation && (
                 <details className="text-sm text-gray-600 mt-2">
                   <summary className="cursor-pointer font-bold">Worked solution</summary>
-                  <p className="whitespace-pre-wrap mt-1">{i.explanation}</p>
+                  <p className="mt-1"><RichText text={i.explanation} /></p>
                 </details>
               )}
             </div>
@@ -539,11 +540,11 @@ export const AssessmentRunner: React.FC<{
         {!isCoding && item.content && (
           <>
             {item.content.assets?.context && (
-              <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded mb-3 whitespace-pre-wrap max-h-56 overflow-y-auto">
-                {item.content.assets.context}
+              <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded mb-3 max-h-56 overflow-y-auto">
+                <RichText text={item.content.assets.context} />
               </div>
             )}
-            <p className="font-semibold whitespace-pre-wrap mb-4">{item.content.stem}</p>
+            <p className="font-semibold mb-4"><RichText text={item.content.stem} /></p>
             <div className="space-y-2">
               {item.content.options.map((o: any, i: number) => {
                 const chosen = Array.isArray(answers[item.id]) && answers[item.id].includes(o.id);
@@ -556,7 +557,7 @@ export const AssessmentRunner: React.FC<{
                     }`}
                   >
                     <span className="font-black mr-2">{String.fromCharCode(65 + i)}.</span>
-                    {o.text}
+                    <RichText text={o.text} />
                   </button>
                 );
               })}

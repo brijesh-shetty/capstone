@@ -19,6 +19,7 @@ interface ReviewQuestion {
     requiresImage?: boolean;
     incompleteOptions?: boolean;
     solverDisagreement?: string[];
+    audit?: { status: string; reason: string; model?: string; at?: string };
   } | null;
   topic: { name: string; slug: string; category: string };
   options: Option[];
@@ -37,6 +38,7 @@ const FILTERS = [
   { key: 'disagreement', label: '🤖 Solver Disagreements' },
   { key: 'image', label: '🖼️ Needs Image' },
   { key: 'incomplete', label: '⚠️ Incomplete Options' },
+  { key: 'needs-context', label: '🧩 Missing Context' },
 ];
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E'];
@@ -152,6 +154,14 @@ export const ReviewQueue: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                 {q.assets?.solverDisagreement && (
                   <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-bold">
                     AI split: {q.assets.solverDisagreement.join(' vs ')}
+                  </span>
+                )}
+                {q.assets?.audit && q.assets.audit.status !== 'SELF_CONTAINED' && (
+                  <span
+                    className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded font-bold"
+                    title={q.assets.audit.reason}
+                  >
+                    {q.assets.audit.status === 'NEEDS_CONTEXT' ? 'missing context' : q.assets.audit.status.toLowerCase()}
                   </span>
                 )}
                 {q.proposedAnswer && !q.assets?.solverDisagreement && (

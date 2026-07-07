@@ -111,9 +111,19 @@ async function resolveSection(
         ...(rule.topicSlugs ? { slug: { in: rule.topicSlugs } } : {}),
       },
     },
-    select: { id: true, difficulty: true, topicId: true },
+    select: { id: true, difficulty: true, topicId: true, assets: true },
   });
-  const candidates = pool.filter((q) => !pinnedIds.has(q.id));
+  // never serve questions that can't be answered as displayed: figure-based
+  // items with no image attached, truncated items, and audit-flagged items
+  // whose context/passage was lost in extraction
+  const servable = pool.filter((q) => {
+    const a = q.assets as any;
+    if (a?.requiresImage && !(Array.isArray(a?.images) && a.images.length > 0)) return false;
+    if (a?.incompleteOptions) return false;
+    if (a?.audit && a.audit.status !== 'SELF_CONTAINED') return false;
+    return true;
+  });
+  const candidates = servable.filter((q) => !pinnedIds.has(q.id));
 
   let picked: { id: string; difficulty: string; topicId: string }[];
   if (rule.strategy === 'ONE_PER_TOPIC') {

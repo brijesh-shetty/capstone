@@ -8,7 +8,7 @@ import { SNAPSHOT_DIR } from './assessments';
 const router = Router();
 const adminOnly = [authMiddleware, requireRole('ADMIN', 'EDUCATOR')];
 
-// GET /admin/review-queue?filter=unverified|disagreement|image|incomplete&page=1&topic=slug
+// GET /admin/review-queue?filter=unverified|disagreement|image|incomplete|needs-context&page=1&topic=slug
 router.get('/review-queue', ...adminOnly, async (req: AuthRequest, res: Response) => {
   try {
     const filter = (req.query.filter as string) || 'unverified';
@@ -24,6 +24,9 @@ router.get('/review-queue', ...adminOnly, async (req: AuthRequest, res: Response
       where.assets = { path: ['requiresImage'], equals: true };
     } else if (filter === 'incomplete') {
       where.assets = { path: ['incompleteOptions'], equals: true };
+    } else if (filter === 'needs-context') {
+      // flagged by scripts/audit-context.ts — stem references missing context
+      where.assets = { path: ['audit', 'status'], equals: 'NEEDS_CONTEXT' };
     }
 
     const [total, questions] = await Promise.all([
